@@ -88,6 +88,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
         return true;
     }
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleSend = async (message: Message, deleteCount = 0) => {
         if (!handleKeyConfigurationValidation()) {
             return;
@@ -475,7 +476,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
             handleSend(currentMessage);
             setCurrentMessage(undefined);
         }
-    }, [currentMessage]);
+    }, [currentMessage, handleSend]);
 
     useEffect(() => {
         if (window.innerWidth < 640) {
@@ -540,7 +541,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
     return (
         <>
             <Head>
-                <title>ChatFiles</title>
+                <title>Mahboub 2.0 (Demo)</title>
                 <meta name="description" content="ChatGPT but better."/>
                 <meta name="viewport"
                       content="height=device-height ,width=device-width, initial-scale=1, user-scalable=no"/>
@@ -563,7 +564,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                     <div className="flex h-full w-full pt-[48px] sm:pt-0">
                         {showSidebar ? (
                             <div>
-                                <Sidebar
+                                {/* <Sidebar
                                     loading={messageIsStreaming}
                                     conversations={conversations}
                                     lightMode={lightMode}
@@ -584,7 +585,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                                     keyConfiguration={keyConfiguration}
                                     onKeyConfigrationChange={handleKeyConfigrationChange}
                                     keyConfigurationButtonRef={keyConfigurationButtonRef}
-                                />
+                                /> */}
 
                                 <div
                                     onClick={() => setShowSidebar(!showSidebar)}

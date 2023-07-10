@@ -29,6 +29,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             input_documents: documents,
             question: message,
         }).catch(console.error);
+        console.log("handler chatfile query done: ", message, documents.length);
         // res.status(200).json({ responseMessage: chainValues.text.toString() });
     } catch (e) {
         console.log("error in handler: ", e);

@@ -94,7 +94,7 @@ export const ChatInput: FC<Props> = ({
         textareaRef?.current?.scrollHeight > 400 ? 'auto' : 'hidden'
       }`;
     }
-  }, [content]);
+  }, [content, textareaRef]);
 
   function handleStopConversation() {
     stopConversationRef.current = true;
@@ -160,7 +160,7 @@ export const ChatInput: FC<Props> = ({
           </button>
         </div>
       </div>
-      <div className="px-3 pt-2 pb-3 text-center text-[12px] text-black/50 dark:text-white/50 md:px-4 md:pt-3 md:pb-6">
+      {/* <div className="px-3 pt-2 pb-3 text-center text-[12px] text-black/50 dark:text-white/50 md:px-4 md:pt-3 md:pb-6">
         <a
           href="https://github.com/guangzhengli/ChatFiles"
           target="_blank"
@@ -173,7 +173,7 @@ export const ChatInput: FC<Props> = ({
         {t(
           "aims to establish embeddings for ChatGPT and facilitate its ability to engage in document-based conversations.",
         )}
-      </div>
+      </div> */}
     </div>
   );
 };

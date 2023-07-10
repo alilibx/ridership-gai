@@ -3,9 +3,10 @@ import {ChatBody} from '@/types';
 import wasm from '../../node_modules/@dqbd/tiktoken/lite/tiktoken_bg.wasm?module';
 import {getKeyConfiguration} from "@/utils/app/configuration";
 import {NextApiRequest, NextApiResponse} from "next";
+import {DEFAULT_SYSTEM_PROMPT} from "@/utils/app/const";
 import {AIChatMessage, BaseChatMessage, HumanChatMessage} from "langchain/schema";
 import {getChatModel} from "@/utils/openai";
-import {ChatPromptTemplate, HumanMessagePromptTemplate} from "langchain/prompts";
+import {ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate} from "langchain/prompts";
 import {BufferMemory, ChatMessageHistory} from "langchain/memory";
 import {LLMChain} from "langchain/chains";
 
@@ -35,7 +36,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const llm = await getChatModel(keyConfiguration, res);
 
     const promptTemplate = ChatPromptTemplate.fromPromptMessages([
-      // SystemMessagePromptTemplate.fromTemplate(prompt ? prompt : DEFAULT_SYSTEM_PROMPT),
+       //SystemMessagePromptTemplate.fromTemplate(prompt ? prompt : DEFAULT_SYSTEM_PROMPT),
       // new MessagesPlaceholder("history"),
       HumanMessagePromptTemplate.fromTemplate("{input}"),
     ]);

@@ -25,8 +25,8 @@ export const getExistingVectorStore = async (keyConfiguration: KeyConfiguration,
         {
             client,
             tableName: "documents",
-            queryName: "match_documents",
-            filter: fileNameFilter
+            queryName: "match_documents"
+            //filter: fileNameFilter
         }
     );
 }

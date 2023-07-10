@@ -54,7 +54,6 @@ export const SidebarSettings: FC<Props> = ({
           onToggleLightMode(lightMode === 'light' ? 'dark' : 'light')
         }
       />
-      <KeySettings keyConfiguration={keyConfiguration} onKeyConfigrationChange={onKeyConfigrationChange} keyConfigurationButtonRef={keyConfigurationButtonRef}/>
     </div>
   );
 };
