@@ -8,6 +8,7 @@ import remarkMath from 'remark-math';
 import { CodeBlock } from '../Markdown/CodeBlock';
 import { MemoizedReactMarkdown } from '../Markdown/MemoizedReactMarkdown';
 import { CopyButton } from './CopyButton';
+import { json } from 'stream/consumers';
 
 interface Props {
   message: Message;
@@ -192,11 +193,18 @@ export const ChatMessage: FC<Props> = memo(
                           {children}
                         </td>
                       );
-                    },
+                    },                
                   }}
                 >
-                  {message.content}
+                  {
+                  message.content + "\n \n" + "Click here to learn more about this service: \n "
+                  }
+               
                 </MemoizedReactMarkdown>
+                  
+                  { (JSON.parse(JSON.stringify((message.metadata || [])[0])?? '[]') != null) &&
+                    <a href={"https://www.rta.ae/wps/portal/rta/ae/home/rta-services/service-details?serviceId=" + JSON.parse(JSON.stringify((message.metadata || [])[0])?? '[]')} target="_blank" rel="noopener noreferrer"> Learn More </a>
+                  }
 
                 {(isHovering || window.innerWidth < 640) && (
                   <CopyButton

@@ -6,23 +6,19 @@ import {AIChatMessage, BaseChatMessage, HumanChatMessage} from "langchain/schema
 import {getChatModel} from "@/utils/openai";
 import {ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate} from "langchain/prompts";
 import {BufferMemory, ChatMessageHistory} from "langchain/memory";
-import {LLMChain} from "langchain/chains";
+import {ConversationChain, LLMChain, RetrievalQAChain, StuffDocumentsChain} from "langchain/chains";
 
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  const { messages, prompt } = req.body as ChatBody;
   const keyConfiguration = getKeyConfiguration(req);
 
-  let input: string;
-  if (messages.length === 1) {
-    input = messages[0].content;
-  } else {
-    input = messages[messages.length - 1].content;
-  }
+  //const message: string = req.query.message as string;
+  const { messages, prompt } = req.body as ChatBody;
 
-  var promptText = "respond only from context, and make sure that you respond in one sentence, if i said 'how are you' or any greeting you should respond with a greeting like 'i am fine' or 'i am fine, how are you', if the question is not in the context say 'i don't have any information about that'";
+  try {
+    const llm = await getChatModel(keyConfiguration, res);
 
-  const historyMessages: BaseChatMessage[] = messages?.slice(0, messages.length - 1)
+    const historyMessages: BaseChatMessage[] = messages?.slice(0, messages.length - 1)
   .map((message) => {
     if (message.role === 'user') {
       return new HumanChatMessage(message.content);
@@ -32,27 +28,34 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     throw new TypeError('Invalid message role');
   });
 
-  try {
-    const llm = await getChatModel(keyConfiguration, res);
-
-    const promptTemplate = ChatPromptTemplate.fromPromptMessages([
-       SystemMessagePromptTemplate.fromTemplate(promptText ? promptText : DEFAULT_SYSTEM_PROMPT),
-      // new MessagesPlaceholder("history"),
-      HumanMessagePromptTemplate.fromTemplate("{input}"),
-    ]);
-
+  let input: string;
+  if (messages.length === 1) {
+    input = messages[0].content;
+  } else {
+    input = messages[messages.length - 1].content;
+  }
+    
     const memory = new BufferMemory({
-      returnMessages: true,
       chatHistory: new ChatMessageHistory(historyMessages),
     });
 
-    const chain = new LLMChain({
-      prompt: promptTemplate,
-      llm,
-      memory,
-    });
+    var promptText =
+    "respond only from context, and make sure that you respond in one sentence, if i said 'how are you' or any greeting you should respond with a greeting like 'i am fine' or 'i am fine, how are you'.";
 
-    chain.call({ input }).catch(console.error);
+    // Set prompt template
+    console.info('Setting prompt template...');
+    const promptTemplate = ChatPromptTemplate.fromPromptMessages([
+    SystemMessagePromptTemplate.fromTemplate(
+    promptText ? promptText : DEFAULT_SYSTEM_PROMPT,
+    ),
+    HumanMessagePromptTemplate.fromTemplate("{input}"),
+    ]);
+
+    const chain = new RetrievalQAChain({llm});
+
+    chain.call({ 
+      input
+    }).catch(console.error);
   } catch (err) {
     console.error(err);
     let error = "Unexpected message";

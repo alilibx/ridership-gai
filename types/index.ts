@@ -4,6 +4,7 @@ export interface OpenAIModel {
 }
 
 export enum OpenAIModelID {
+  GPT_3_5_16 = 'gpt-3.5-turbo-16k',
   GPT_3_5 = 'gpt-3.5-turbo',
   GPT_4 = 'gpt-4',
 }
@@ -14,6 +15,10 @@ export enum ModelType {
 }
 
 export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
+  [OpenAIModelID.GPT_3_5_16]: {
+    id: OpenAIModelID.GPT_3_5_16,
+    name: 'GPT-3.5 Turbo 16k',
+  },
   [OpenAIModelID.GPT_3_5]: {
     id: OpenAIModelID.GPT_3_5,
     name: 'Default (GPT-3.5)',
@@ -27,6 +32,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
 export interface Message {
   role: Role;
   content: string;
+  metadata?: string[];
 }
 
 export type Role = 'assistant' | 'user';

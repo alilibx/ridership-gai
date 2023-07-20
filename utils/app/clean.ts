@@ -12,7 +12,7 @@ export const cleanSelectedConversation = (conversation: Conversation) => {
   if (!updatedConversation.model) {
     updatedConversation = {
       ...updatedConversation,
-      model: updatedConversation.model || OpenAIModels[OpenAIModelID.GPT_3_5],
+      model: updatedConversation.model || OpenAIModels[OpenAIModelID.GPT_3_5_16],
     };
   }
 
@@ -42,7 +42,7 @@ export const cleanConversationHistory = (history: Conversation[]) => {
   return history.reduce((acc: Conversation[], conversation) => {
     try {
       if (!conversation.model) {
-        conversation.model = OpenAIModels[OpenAIModelID.GPT_3_5];
+        conversation.model = OpenAIModels[OpenAIModelID.GPT_3_5_16];
       }
 
       if (!conversation.prompt) {

@@ -122,45 +122,44 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
             const controller = new AbortController();
 
             let response: Response;
+            console.log(" The Golorofied Index ", updatedConversation);
+            // if (updatedConversation.index.indexName.length !== 0) {
 
-            if (updatedConversation.index.indexName.length === 0) {
+            //     response = await fetch('/api/chat', {
+            //         method: 'POST',
+            //         headers: {
+            //             'Content-Type': 'application/json',
+            //             'x-api-type': keyConfiguration.apiType ?? '',
+            //             'x-api-key': keyConfiguration.apiKey ?? '',
+            //             'x-azure-api-key': keyConfiguration.azureApiKey ?? '',
+            //             'x-azure-instance-name': keyConfiguration.azureInstanceName ?? '',
+            //             'x-azure-api-version': keyConfiguration.azureApiVersion ?? '',
+            //             'x-azure-deployment-name': keyConfiguration.azureDeploymentName ?? '',
+            //             'x-azure-embedding-deployment-name': keyConfiguration.azureEmbeddingDeploymentName ?? '',
+            //         },
+            //         signal: controller.signal,
+            //         body: JSON.stringify({
+            //             messages: updatedConversation.messages
+            //         }),
+            //     });
 
-                response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-type': keyConfiguration.apiType ?? '',
-                        'x-api-key': keyConfiguration.apiKey ?? '',
-                        'x-azure-api-key': keyConfiguration.azureApiKey ?? '',
-                        'x-azure-instance-name': keyConfiguration.azureInstanceName ?? '',
-                        'x-azure-api-version': keyConfiguration.azureApiVersion ?? '',
-                        'x-azure-deployment-name': keyConfiguration.azureDeploymentName ?? '',
-                        'x-azure-embedding-deployment-name': keyConfiguration.azureEmbeddingDeploymentName ?? '',
-                    },
-                    signal: controller.signal,
-                    body: JSON.stringify({
-                        messages: updatedConversation.messages,
-                        prompt: updatedConversation.prompt,
-                    }),
-                });
-
-                console.log("handle chat response")
-            } else {
+            //     console.log("handle chat response")
+            // } else {
                 response = await fetch(
-                    `/api/query?message=${message.content}&indexName=${updatedConversation.index.indexName}`, {
-                        method: 'GET',
+                    '/api/query', {
+                        method: 'POST',
                         headers: {
                             'x-api-type': keyConfiguration.apiType ?? '',
                             'x-api-key': keyConfiguration.apiKey ?? '',
-                            'x-azure-api-key': keyConfiguration.azureApiKey ?? '',
-                            'x-azure-instance-name': keyConfiguration.azureInstanceName ?? '',
-                            'x-azure-api-version': keyConfiguration.azureApiVersion ?? '',
-                            'x-azure-deployment-name': keyConfiguration.azureDeploymentName ?? '',
-                            'x-azure-embedding-deployment-name': keyConfiguration.azureEmbeddingDeploymentName ?? '',
                         },
+                        signal: controller.signal,
+                        body: JSON.stringify({
+                            messages: updatedConversation.messages,
+                            prompt: updatedConversation.prompt,
+                        })
                     });
                 console.log("handle file chat response")
-            }
+           // }
 
             if (!response.ok) {
                 setLoading(false);
@@ -211,7 +210,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                     isFirst = false;
                     const updatedMessages: Message[] = [
                         ...updatedConversation.messages,
-                        {role: 'assistant', content: chunkValue},
+                        {role: 'assistant', content: JSON.parse(text).text}
                     ];
 
                     updatedConversation = {
@@ -226,7 +225,8 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                             if (index === updatedConversation.messages.length - 1) {
                                 return {
                                     ...message,
-                                    content: text,
+                                    content: JSON.parse(text).text,
+                                    metadata: JSON.parse(text).serviceIds,
                                 };
                             }
 
@@ -355,7 +355,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                 lastConversation ? lastConversation.id + 1 : 1
             }`,
             messages: [],
-            model: OpenAIModels[OpenAIModelID.GPT_3_5],
+            model: OpenAIModels[OpenAIModelID.GPT_3_5_16],
             prompt: DEFAULT_SYSTEM_PROMPT,
             folderId: 0,
             index: {
@@ -392,7 +392,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                 id: 1,
                 name: 'New conversation',
                 messages: [],
-                model: OpenAIModels[OpenAIModelID.GPT_3_5],
+                model: OpenAIModels[OpenAIModelID.GPT_3_5_16],
                 prompt: DEFAULT_SYSTEM_PROMPT,
                 folderId: 0,
                 index: {
@@ -430,7 +430,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
             id: 1,
             name: 'New conversation',
             messages: [],
-            model: OpenAIModels[OpenAIModelID.GPT_3_5],
+            model: OpenAIModels[OpenAIModelID.GPT_3_5_16],
             prompt: DEFAULT_SYSTEM_PROMPT,
             folderId: 0,
             index: {
@@ -527,7 +527,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                 id: 1,
                 name: 'New conversation',
                 messages: [],
-                model: OpenAIModels[OpenAIModelID.GPT_3_5],
+                model: OpenAIModels[OpenAIModelID.GPT_3_5_16],
                 prompt: DEFAULT_SYSTEM_PROMPT,
                 folderId: 0,
                 index: {
@@ -564,7 +564,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                     <div className="flex h-full w-full pt-[48px] sm:pt-0">
                         {showSidebar ? (
                             <div>
-                                {/* <Sidebar
+                                 {/* <Sidebar
                                     loading={messageIsStreaming}
                                     conversations={conversations}
                                     lightMode={lightMode}
@@ -585,7 +585,7 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
                                     keyConfiguration={keyConfiguration}
                                     onKeyConfigrationChange={handleKeyConfigrationChange}
                                     keyConfigurationButtonRef={keyConfigurationButtonRef}
-                                /> */}
+                                />  */}
 
                                 <div
                                     onClick={() => setShowSidebar(!showSidebar)}

@@ -18,15 +18,12 @@ export const getVectorStore = async (keyConfiguration: KeyConfiguration, texts: 
     );
 }
 
-export const getExistingVectorStore = async (keyConfiguration: KeyConfiguration, fileName: string) => {
-    const fileNameFilter: SupabaseFilterRPCCall = (rpc) =>
-        rpc.filter("metadata->>file_name", "eq", fileName);
+export const getExistingVectorStore = async (keyConfiguration: KeyConfiguration) => {
     return await SupabaseVectorStore.fromExistingIndex(await getEmbeddings(keyConfiguration),
         {
             client,
             tableName: "documents",
             queryName: "match_documents"
-            //filter: fileNameFilter
         }
     );
 }

@@ -1,41 +1,136 @@
-import type {NextApiRequest, NextApiResponse} from 'next'
-import {getExistingVectorStore} from "@/utils/vector";
-import {getModel} from "@/utils/openai";
-import {loadQAStuffChain} from "langchain/chains";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { getExistingVectorStore } from '@/utils/vector';
+import { getModel } from '@/utils/openai';
+import { StuffDocumentsChain, loadQAChain, loadQAMapReduceChain, loadQARefineChain, loadQAStuffChain } from 'langchain/chains';
+import {
+  AIChatMessage,
+  BaseChatMessage,
+  HumanChatMessage,
+} from 'langchain/schema';
 import { getKeyConfiguration } from '@/utils/app/configuration';
+import {
+  ChatPromptTemplate,
+  HumanMessagePromptTemplate,
+  SystemMessagePromptTemplate,
+} from 'langchain/prompts';
+import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
+import { ChatBody } from '@/types';
 
-export const config = {
-    api: {
-        bodyParser: false,
-    }
-};
+// export const config = {
+//   api: {
+//     bodyParser: false,
+//   },
+// };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-    console.log("beginning handler");
+  try {
+    console.info('Starting query handler...');
+    // Load Configuration from The Request
+    console.info('Loading configuration from request...');
     const keyConfiguration = getKeyConfiguration(req);
 
-    const message: string = req.query.message as string;
-    const indexName: string = req.query.indexName as string;
-
-    console.log("handler chatfile query: ", message, indexName);
-    const vectorStore = await getExistingVectorStore(keyConfiguration, indexName);
-
-    const documents = await vectorStore.similaritySearch(message, 2);
+    // Load the LLM Model
+    console.info('Loading LLM model...');
     const llm = await getModel(keyConfiguration, res);
-    const stuffChain = loadQAStuffChain(llm);
 
-    try {
-        stuffChain.call({
-            input_documents: documents,
-            question: message,
-        }).catch(console.error);
-        console.log("handler chatfile query done: ", message, documents.length);
-        // res.status(200).json({ responseMessage: chainValues.text.toString() });
-    } catch (e) {
-        console.log("error in handler: ", e);
-        res.status(500).json({ responseMessage: (e as Error).toString() });
+    // Get the body from the request
+    console.info('Retrieving body from request...');
+    //const { messages, prompt } = req.body as ChatBody;
+    const messages = JSON.parse(req.body).messages;
+
+    // Get Message input from message history
+    console.info('Retrieving message input from message history...');
+    let input: string;
+    if (messages.length === 1) {
+      input = messages[0].content;
+    } else {
+      input = messages[messages.length - 1].content;
     }
 
-}
+    // Base Prompt Text
+    console.info('Setting base prompt text...');
+    var promptText =
+    "Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't have any information about that, don't try to make up an answer. make sure the answer is short and to the point, if the question is a greeting. reply with a greeting, also answer only with the same language as the question. \n" +
+    '\n' +
+    '{context}\n' +
+    '\n' +
+    'Question: {question}\n' +
+    'Helpful Answer:';
+
+    // Get all messages in one string to be used in the prompt
+    console.info('Retrieving all messages in one string...');
+    var messagesString = '';
+    for (var i = 0; i < messages.length - 1; i++) {
+      messagesString += messages[i].content + '\n';
+    }
+
+    // Get and Format Message History
+    console.info('Retrieving and formatting message history...');
+    const historyMessages: BaseChatMessage[] = messages
+      ?.slice(0, messages.length - 1)
+      .map((message: { role: string; content: string }) => {
+        if (message.role === 'user') {
+          return new HumanChatMessage(message.content);
+        } else if (message.role === 'assistant') {
+          return new AIChatMessage(message.content);
+        }
+        throw new TypeError('Invalid message role');
+      });
+
+    // Set prompt template
+    console.info('Setting prompt template...');
+    const promptTemplate = ChatPromptTemplate.fromPromptMessages([
+      SystemMessagePromptTemplate.fromTemplate(
+      promptText ? promptText : DEFAULT_SYSTEM_PROMPT,
+      ),
+      // new MessagesPlaceholder("history"),
+      //HumanMessagePromptTemplate.fromTemplate(promptText),
+    ]);
+
+    // Get Existing Vector Store
+    console.info('Retrieving existing vector store...');
+    const vectorStore = await getExistingVectorStore(keyConfiguration);
+
+    // Retrieving documents from vector store by using similarity search
+    console.info(
+      'Retrieving documents from vector store by using similarity search...',
+    );
+    const documents = await vectorStore.similaritySearch(input, 2);
+
+    // Check if metadata is available and log it
+    console.info('Checking if metadata is available and logging it...');
+    console.log(
+      documents.map((doc) => ({ serviceId: doc.metadata?.id ?? null })),
+    );
+
+    // Set Stuff chain to ingest documents and question
+    console.info('Set Stuff chain to ingest documents and question...');
+    const stuffChain = loadQAStuffChain(llm, {prompt : promptTemplate});
+
+   var response = await stuffChain
+      .call({
+        input_documents: documents,
+        question: input,
+      })
+      .catch(console.error);
+
+      // return an array of service ids numbers only from the documents but only when the service id is not null 
+      var serviceIds = documents.map((doc) => ({ serviceId: doc.metadata?.id ?? null })).filter((doc) => doc.serviceId != null).map((doc) => doc.serviceId);
+
+      // Make sure the response is not empty and return the text inside the response
+      if (response == null) {
+        response = {text: "Sorry, I don't have an answer for that."};
+      }else {
+        response = response.text;
+      }
+
+      res.status(200).json({ text: response, serviceIds: serviceIds });
+
+    console.log('handler chatfile query done: ', input, documents.length);
+  } catch (e) {
+    console.log('error in handler: ', e);
+    res.status(500).json({ responseMessage: (e as Error).toString() });
+  }
+};
 
 export default handler;
