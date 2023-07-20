@@ -116,15 +116,32 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       // return an array of service ids numbers only from the documents but only when the service id is not null 
       var serviceIds = documents.map((doc) => ({ serviceId: doc.metadata?.id ?? null })).filter((doc) => doc.serviceId != null).map((doc) => doc.serviceId);
-
+      var outputText = '';
       // Make sure the response is not empty and return the text inside the response
       if (response == null) {
-        response = {text: "Sorry, I don't have an answer for that."};
+        outputText = "Sorry, I don't have an answer for that.";
       }else {
-        response = response.text;
+        outputText = response.text;
+      }
+      // If response containes [{"type" then parse it as array and get the first item as json and get the data.content from it
+      // else if response contains {"text" then parse it as json and get the data.content from it
+      // else if outputText contains {"answer" then parse it as json and get the value of answer from it
+
+      if (outputText.includes('[{"type"')) {
+        var responseJson = JSON.parse(outputText);
+        outputText = responseJson[0].data.content;
+      }else if (outputText.includes('{"type"')) {
+        var responseJson = JSON.parse(outputText);
+        outputText = responseJson.data.content;
+      }else if (outputText.includes('{"answer"')) {
+        var responseJson = JSON.parse(outputText);
+        outputText = responseJson.answer;
+      } else if (outputText.includes('{"message"')) {
+        var responseJson = JSON.parse(outputText);
+        outputText = responseJson.data.content;
       }
 
-      res.status(200).json({ text: response, serviceIds: serviceIds });
+      res.status(200).json({ text: outputText, serviceIds: serviceIds });
 
     console.log('handler chatfile query done: ', input, documents.length);
   } catch (e) {

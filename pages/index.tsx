@@ -206,6 +206,9 @@ const Home: React.FC<HomeProps> = ({serverSideApiKeyIsSet}) => {
 
                 text += chunkValue;
 
+                console.log("handle chat response",text.replace(/\\/g, ''))
+                
+
                 if (isFirst) {
                     isFirst = false;
                     const updatedMessages: Message[] = [

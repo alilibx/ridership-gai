@@ -201,9 +201,8 @@ export const ChatMessage: FC<Props> = memo(
                   }
                
                 </MemoizedReactMarkdown>
-                 
-                  { (JSON.parse(JSON.stringify((message.metadata || [])[0])?? '[]') != null) &&
-                    <a href={"https://www.rta.ae/wps/portal/rta/ae/home/rta-services/service-details?serviceId=" + JSON.parse(JSON.stringify((message.metadata || [])[0])?? '[]')} target="_blank" rel="noopener noreferrer"> Learn More </a>
+                  { (message.metadata && message.metadata.length > 0) &&
+                    <a href={"https://www.rta.ae/wps/portal/rta/ae/home/rta-services/service-details?serviceId=" + JSON.parse(JSON.stringify((message.metadata || [])[0])?? '[]')} target="_blank" rel="noopener noreferrer"> Learn More </a> 
                   }
 
                 {(isHovering || window.innerWidth < 640) && (
