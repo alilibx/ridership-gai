@@ -14,7 +14,7 @@ import {
   SystemMessagePromptTemplate,
 } from 'langchain/prompts';
 import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
-import { ChatBody } from '@/types';
+import { ChatBody, ModelType } from '@/types';
 
 // export const config = {
 //   api: {
@@ -29,14 +29,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info('Loading configuration from request...');
     const keyConfiguration = getKeyConfiguration(req);
 
+    keyConfiguration.apiKey = process.env.OPENAI_API_KEY;
+    keyConfiguration.apiType = ModelType.OPENAI;
+
     // Load the LLM Model
     console.info('Loading LLM model...');
     const llm = await getModel(keyConfiguration, res);
 
     // Get the body from the request
     console.info('Retrieving body from request...');
-    //const { messages, prompt } = req.body as ChatBody;
-    const messages = JSON.parse(req.body).messages;
+    const { messages, prompt } = req.body as ChatBody;
 
     // Get Message input from message history
     console.info('Retrieving message input from message history...');
@@ -115,7 +117,27 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       .catch(console.error);
 
       // return an array of service ids numbers only from the documents but only when the service id is not null 
-      var serviceIds = documents.map((doc) => ({ serviceId: doc.metadata?.id ?? null })).filter((doc) => doc.serviceId != null).map((doc) => doc.serviceId);
+      var serviceIds = documents.map((doc) => ({
+        serviceId: doc.metadata?.id ?? null,
+        title: doc.metadata?.title ?? null,
+        level: doc.metadata?.level ?? null,
+        score: doc.metadata?.score ?? null,
+        nlu_score: doc.metadata?.nlu_score ?? null,
+        t_score: doc.metadata?.t_score ?? null,
+        d_score: doc.metadata?.d_score ?? null,
+      })).filter((doc) => doc.serviceId != null);
+
+      var data = documents.map((doc, index) => ({
+        unique_id: doc.metadata?.id ?? null,
+        title: doc.metadata?.title ?? null,
+        level: doc.metadata?.level ?? null,
+        score: 250,
+        nlu_score: doc.metadata?.nlu_score ?? null,
+        t_score: doc.metadata?.t_score ?? null,
+        d_score: doc.metadata?.d_score ?? null,
+      })).filter((doc) => doc.unique_id != null);
+      
+      
       var outputText = '';
       // Make sure the response is not empty and return the text inside the response
       if (response == null) {
@@ -141,7 +163,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         outputText = responseJson.data.content;
       }
 
-      res.status(200).json({ text: outputText, serviceIds: serviceIds });
+      res.status(200).json({ text: outputText, data });
 
     console.log('handler chatfile query done: ', input, documents.length);
   } catch (e) {
