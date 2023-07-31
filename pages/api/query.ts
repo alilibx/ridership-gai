@@ -14,7 +14,7 @@ import {
   SystemMessagePromptTemplate,
 } from 'langchain/prompts';
 import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
-import { ChatBody, ModelType } from '@/types';
+import { ChatBody, ModelType, Message } from '@/types';
 
 // export const config = {
 //   api: {
@@ -38,15 +38,26 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Get the body from the request
     console.info('Retrieving body from request...');
-    const { messages, prompt } = req.body as ChatBody;
-
-    // Get Message input from message history
-    console.info('Retrieving message input from message history...');
     let input: string;
+    let messages: Message[] = [];
+    // Check if the request method is POST get the messages from the body otherwise get only one input from input query string       
+    if (req.method === 'POST') {
+      messages = (req.body as ChatBody).messages;
+       // Get Message input from message history
+    console.info('Retrieving message input from message history...');
     if (messages.length === 1) {
       input = messages[0].content;
     } else {
       input = messages[messages.length - 1].content;
+    }
+    } else {
+      input = req.query.input as string;
+    }
+
+    // Check if the input is empty and return an error
+    if (!input) {
+      res.status(400).json({ responseMessage: 'Input is empty or not well formatted' });
+      return;
     }
 
     // Base Prompt Text
@@ -58,13 +69,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     '\n' +
     'Question: {question}\n' +
     'Helpful Answer:';
-
-    // Get all messages in one string to be used in the prompt
-    console.info('Retrieving all messages in one string...');
-    var messagesString = '';
-    for (var i = 0; i < messages.length - 1; i++) {
-      messagesString += messages[i].content + '\n';
-    }
 
     // Get and Format Message History
     console.info('Retrieving and formatting message history...');
