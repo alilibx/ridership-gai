@@ -101,13 +101,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info(
       'Retrieving documents from vector store by using similarity search...',
     );
-    const documents = await vectorStore.similaritySearch(input, 2);
+    const documentsWithScore = await vectorStore.similaritySearchWithScore(input, 6);
 
-    // Check if metadata is available and log it
-    console.info('Checking if metadata is available and logging it...');
-    console.log(
-      documents.map((doc) => ({ serviceId: doc.metadata?.id ?? null })),
-    );
+    // extract only the documents from the documents array or arrays of [Document, integer]
+    console.info('Extracting only the documents from the documents array...');
+    const documents = documentsWithScore.map((doc) => doc[0]);
+
+    // // Check if metadata is available and log it
+    // console.info('Checking if metadata is available and logging it...');
 
     // Set Stuff chain to ingest documents and question
     console.info('Set Stuff chain to ingest documents and question...');
@@ -121,26 +122,17 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       .catch(console.error);
 
       // return an array of service ids numbers only from the documents but only when the service id is not null 
-      var serviceIds = documents.map((doc) => ({
-        serviceId: doc.metadata?.id ?? null,
-        title: doc.metadata?.title ?? null,
-        level: doc.metadata?.level ?? null,
-        score: doc.metadata?.score ?? null,
-        nlu_score: doc.metadata?.nlu_score ?? null,
-        t_score: doc.metadata?.t_score ?? null,
-        d_score: doc.metadata?.d_score ?? null,
-      })).filter((doc) => doc.serviceId != null);
-
-      var data = documents.map((doc, index) => ({
-        unique_id: doc.metadata?.id ?? null,
-        title: doc.metadata?.title ?? null,
-        level: doc.metadata?.level ?? null,
-        score: 250,
-        nlu_score: doc.metadata?.nlu_score ?? null,
-        t_score: doc.metadata?.t_score ?? null,
-        d_score: doc.metadata?.d_score ?? null,
-      })).filter((doc) => doc.unique_id != null);
-      
+      // Also get the similary score integer from the documents array [Document, integer]
+      const data = documentsWithScore
+      .map((doc) => {
+        return {
+          unique_id: doc[0].metadata.unique_id,
+          title: doc[0].metadata.name,
+          level: 0,
+          score: doc[1],
+        };
+      })
+      .filter((doc) => doc.unique_id != null);
       
       var outputText = '';
       // Make sure the response is not empty and return the text inside the response
@@ -167,7 +159,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         outputText = responseJson.data.content;
       }
 
-      res.status(200).json({ text: outputText, data });
+      // Filter input string to remove stop words and any special characters and convert it to upper case 
+      var clearText = input.replace(/[^\w\s]|_/g, "").replace(/\s+/g, " ").toUpperCase();
+
+      res.status(200).json({ response_text: outputText, data,  text_clear: clearText});
 
     console.log('handler chatfile query done: ', input, documents.length);
   } catch (e) {
