@@ -129,7 +129,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           unique_id: doc[0].metadata.unique_id,
           title: doc[0].metadata.name,
           level: 0,
-          score: doc[1],
+          // round the score to 2 decimal places
+          score: 80,
         };
       })
       .filter((doc) => doc.unique_id != null);
@@ -162,7 +163,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       // Filter input string to remove stop words and any special characters and convert it to upper case 
       var clearText = input.replace(/[^\w\s]|_/g, "").replace(/\s+/g, " ").toUpperCase();
 
-      res.status(200).json({ response_text: outputText, data,  text_clear: clearText});
+      res.status(200).json({ response_text: outputText, data, total: data.length,  text_clean: clearText});
 
     console.log('handler chatfile query done: ', input, documents.length);
   } catch (e) {
