@@ -1,6 +1,8 @@
 export const DEFAULT_SYSTEM_PROMPT =
     "You are an AI chatbot called 'Mahboub' a friendly chatbot from Roads and Transpoart Authority - Dubai (RTA). if you don't know something answer with 'I don't understand',reply only with 1 setence. ";
 
+export const ISMEMORY_VECTOR_STORE = true;
+
 export const CHAT_FILES_MAX_SIZE =
     parseInt(process.env.NEXT_PUBLIC_CHAT_FILES_MAX_SIZE || '') || 0;
 

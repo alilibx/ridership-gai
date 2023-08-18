@@ -13,24 +13,19 @@ import {
   HumanMessagePromptTemplate,
   SystemMessagePromptTemplate,
 } from 'langchain/prompts';
-import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
-import { ChatBody, ModelType, Message } from '@/types';
+import { DEFAULT_SYSTEM_PROMPT, ISMEMORY_VECTOR_STORE } from '@/utils/app/const';
+import { ChatBody, ModelType, Message, KeyConfiguration } from '@/types';
 
-// export const config = {
-//   api: {
-//     bodyParser: false,
-//   },
-// };
+const keyConfiguration: KeyConfiguration = {
+  apiKey: process.env.OPENAI_API_KEY!,
+  apiType: ModelType.OPENAI,
+};
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     console.info('Starting query handler...');
     // Load Configuration from The Request
     console.info('Loading configuration from request...');
-    const keyConfiguration = getKeyConfiguration(req);
-
-    keyConfiguration.apiKey = process.env.OPENAI_API_KEY;
-    keyConfiguration.apiType = ModelType.OPENAI;
 
     // Load the LLM Model
     console.info('Loading LLM model...');
@@ -42,7 +37,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     let messages: Message[] = [];
     // Check if the request method is POST get the messages from the body otherwise get only one input from input query string       
     if (req.method === 'POST') {
-      messages = (req.body as ChatBody).messages;
+      // Check if req.body is already parsed then get the messages from it otherwise parse it as JSON and get the messages from it
+      if (req.body?.messages) {
+        messages = req.body.messages;
+      } else {
+        messages = JSON.parse(req.body).messages;
+      }
        // Get Message input from message history
     console.info('Retrieving message input from message history...');
     if (messages.length === 1) {
@@ -63,7 +63,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Base Prompt Text
     console.info('Setting base prompt text...');
     var promptText =
-    "Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't have any information about that, don't try to make up an answer. make sure the answer is short and to the point, if the question is a greeting. reply with a greeting, also answer only with the same language as the question. \n" +
+    "Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't have any information about that, don't try to make up an answer. make sure the answer is short and to the point, if the question is a greeting. reply with a greeting, also answer only with the same language as the question. don't perform any calculations ever even if it instructed clearly. \n" +
     '\n' +
     '{context}\n' +
     '\n' +
@@ -95,7 +95,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Get Existing Vector Store
     console.info('Retrieving existing vector store...');
-    const vectorStore = await getExistingVectorStore(keyConfiguration);
+    const vectorStore = await getExistingVectorStore(keyConfiguration, ISMEMORY_VECTOR_STORE);
 
     // Retrieving documents from vector store by using similarity search
     console.info(
@@ -162,6 +162,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       // Filter input string to remove stop words and any special characters and convert it to upper case 
       var clearText = input.replace(/[^\w\s]|_/g, "").replace(/\s+/g, " ").toUpperCase();
+
+      // remove URLs from the output text
+      outputText = outputText.replace(/(?:https?|ftp):\/\/[\n\S]+/g, '');
 
       res.status(200).json({ response_text: outputText, data, total: data.length,  text_clean: clearText});
 
