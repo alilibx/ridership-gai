@@ -6,9 +6,9 @@ import {NextApiResponse} from "next";
 export const getModel = async (keyConfiguration: KeyConfiguration, res: NextApiResponse) => {
     if (keyConfiguration.apiType === ModelType.AZURE_OPENAI) {
         return new OpenAIChat({
-            modelName: OpenAIModels["gpt-3.5-turbo-16k"].id,
+            modelName: OpenAIModels["gpt-3.5-turbo"].id,
             temperature: 0.9,
-            streaming: true,
+            streaming: false,
             azureOpenAIApiKey: keyConfiguration.azureApiKey,
             azureOpenAIApiInstanceName: keyConfiguration.azureInstanceName,
             azureOpenAIApiDeploymentName: keyConfiguration.azureDeploymentName,
@@ -49,8 +49,8 @@ export const getChatModel = async (keyConfiguration: KeyConfiguration, res: Next
 
 export const getCallbackManager = (res: NextApiResponse) => {
     return CallbackManager.fromHandlers({
-        handleLLMNewToken: async (token: string, runId: string, parentRunId?: string) =>{            
-            res.write(token, );
+        handleLLMNewToken: async (token: string, idx: { prompt: number, completion: number }, runId: string, parentRunId?: string, tags?: string[]) =>{            
+            res.write(token);
         },
         handleLLMEnd: async () => {
             res.end();

@@ -3,9 +3,9 @@ import { getExistingVectorStore } from '@/utils/vector';
 import { getModel } from '@/utils/openai';
 import { StuffDocumentsChain, loadQAChain, loadQAMapReduceChain, loadQARefineChain, loadQAStuffChain } from 'langchain/chains';
 import {
-  AIChatMessage,
-  BaseChatMessage,
-  HumanChatMessage,
+  AIMessage,
+  BaseMessage,
+  ChatMessage
 } from 'langchain/schema';
 import { getKeyConfiguration } from '@/utils/app/configuration';
 import {
@@ -17,8 +17,12 @@ import { DEFAULT_SYSTEM_PROMPT, ISMEMORY_VECTOR_STORE } from '@/utils/app/const'
 import { ChatBody, ModelType, Message, KeyConfiguration } from '@/types';
 
 const keyConfiguration: KeyConfiguration = {
-  apiKey: process.env.OPENAI_API_KEY!,
-  apiType: ModelType.OPENAI,
+  apiType: ModelType.AZURE_OPENAI,
+  azureApiKey: process.env.AZURE_OPENAI_API_KEY!,
+  azureDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME!,
+  azureEmbeddingDeploymentName: process.env.AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME!,
+  azureInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME!,
+  azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!,
 };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -71,17 +75,17 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     'Helpful Answer:';
 
     // Get and Format Message History
-    console.info('Retrieving and formatting message history...');
-    const historyMessages: BaseChatMessage[] = messages
-      ?.slice(0, messages.length - 1)
-      .map((message: { role: string; content: string }) => {
-        if (message.role === 'user') {
-          return new HumanChatMessage(message.content);
-        } else if (message.role === 'assistant') {
-          return new AIChatMessage(message.content);
-        }
-        throw new TypeError('Invalid message role');
-      });
+    // console.info('Retrieving and formatting message history...');
+    // const historyMessages: BaseMessage[] = messages
+    //   ?.slice(0, messages.length - 1)
+    //   .map((message: { role: string; content: string }) => {
+    //     if (message.role === 'user') {
+    //       return new ChatMessage(message.content, 'user');
+    //     } else if (message.role === 'assistant') {
+    //       return new AIMessage(message.content);
+    //     }
+    //     throw new TypeError('Invalid message role');
+    //   });
 
     // Set prompt template
     console.info('Setting prompt template...');
@@ -101,7 +105,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info(
       'Retrieving documents from vector store by using similarity search...',
     );
-    const documentsWithScore = await vectorStore.similaritySearchWithScore(input, 6);
+    const documentsWithScore = await vectorStore.similaritySearchWithScore(input, 2);
 
     // extract only the documents from the documents array or arrays of [Document, integer]
     console.info('Extracting only the documents from the documents array...');
@@ -114,12 +118,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info('Set Stuff chain to ingest documents and question...');
     const stuffChain = loadQAStuffChain(llm, {prompt : promptTemplate});
 
-   var response = await stuffChain
-      .call({
-        input_documents: documents,
-        question: input,
-      })
-      .catch(console.error);
+   var response = await stuffChain.call({input_documents: documents,question: input});
 
       // return an array of service ids numbers only from the documents but only when the service id is not null 
       // Also get the similary score integer from the documents array [Document, integer]
