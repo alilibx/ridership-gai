@@ -2,8 +2,10 @@ import {SupabaseFilterRPCCall, SupabaseVectorStore} from "langchain/vectorstores
 import  { MemoryVectorStore} from 'langchain/vectorstores/memory'
 import {createClient} from "@supabase/supabase-js";
 import {Document} from "langchain/dist/document";
-import {OPENAI_TYPE, SUPABASE_KEY, SUPABASE_URL} from "@/utils/app/const";
+import {OPENAI_TYPE, SUPABASE_KEY, SUPABASE_URL, DOCUMENT_FILE_PATH} from "@/utils/app/const";
 import {getEmbeddings} from "@/utils/embeddings";
+import { getSplitterDocument } from "@/utils/langchain/splitter";
+import { getDocumentLoader } from "@/utils/langchain/documentLoader";
 import { KeyConfiguration, ModelType } from "@/types";
 
 
@@ -12,7 +14,10 @@ const client = createClient(SUPABASE_URL!, SUPABASE_KEY!);
 export const getVectorStore = async (keyConfiguration: KeyConfiguration, texts: string[], metadata: object, isMemory : boolean) => {
     if (isMemory) {
         // Return a memory vector store
-        return await MemoryVectorStore.fromTexts(texts, metadata, await getEmbeddings(keyConfiguration));
+        const loader = getDocumentLoader("json",DOCUMENT_FILE_PATH );
+        const document = await loader.load();
+        const splitDocuments = await getSplitterDocument(keyConfiguration, document);
+        return await MemoryVectorStore.fromDocuments(splitDocuments, await getEmbeddings(keyConfiguration));
     }else{
         return await SupabaseVectorStore.fromTexts(texts, metadata, await getEmbeddings(keyConfiguration),
             {
@@ -26,8 +31,10 @@ export const getVectorStore = async (keyConfiguration: KeyConfiguration, texts: 
 
 export const getExistingVectorStore = async (keyConfiguration: KeyConfiguration, isMemory : boolean) => {
     if (isMemory) {
-        // Return a memory vector store
-        return await MemoryVectorStore.fromExistingIndex(await getEmbeddings(keyConfiguration));
+        const loader = getDocumentLoader("json",DOCUMENT_FILE_PATH);
+        const documents = await loader.load();
+        // const splitDocuments = await getSplitterDocument(keyConfiguration, document);
+        return await MemoryVectorStore.fromDocuments(documents, await getEmbeddings(keyConfiguration));
     }else{
         return await SupabaseVectorStore.fromExistingIndex(await getEmbeddings(keyConfiguration),
             {
@@ -41,9 +48,10 @@ export const getExistingVectorStore = async (keyConfiguration: KeyConfiguration,
 
 export const saveEmbeddings = async (keyConfiguration: KeyConfiguration, documents: Document[], isMemory: boolean) => {
     if (isMemory) {
-        // Return a memory vector store
-        const memoryVectorStore = await MemoryVectorStore.fromExistingIndex(await getEmbeddings(keyConfiguration));
-        await memoryVectorStore.addDocuments(documents);
+        const loader = getDocumentLoader("json",DOCUMENT_FILE_PATH );
+        const document = await loader.load();
+        const splitDocuments = await getSplitterDocument(keyConfiguration, document);
+        return await MemoryVectorStore.fromDocuments(splitDocuments, await getEmbeddings(keyConfiguration));
     }else{
         const supabaseVectorStore = new SupabaseVectorStore(await getEmbeddings(keyConfiguration),
             {client, tableName: "documents", queryName: "match_documents"});

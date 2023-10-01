@@ -1,35 +1,39 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getExistingVectorStore } from '@/utils/vector';
 import { getModel } from '@/utils/openai';
-import { loadQAStuffChain } from 'langchain/chains';
+import { ConversationalRetrievalQAChain, StuffDocumentsChain, loadQAChain, loadQAMapReduceChain, loadQARefineChain, loadQAStuffChain } from 'langchain/chains';
 import {
+  AIChatMessage,
   AIMessage,
+  BaseChatMessage,
   BaseMessage,
-  ChatMessage
+  HumanChatMessage,
+  HumanMessage,
 } from 'langchain/schema';
+import { getKeyConfiguration } from '@/utils/app/configuration';
 import {
   ChatPromptTemplate,
   HumanMessagePromptTemplate,
-  MessagesPlaceholder,
   SystemMessagePromptTemplate,
 } from 'langchain/prompts';
 import { DEFAULT_SYSTEM_PROMPT, ISMEMORY_VECTOR_STORE } from '@/utils/app/const';
-import { ChatBody, ModelType, Message, KeyConfiguration } from '@/types';
+import { ChatBody, ModelType, Message } from '@/types';
 
-const keyConfiguration: KeyConfiguration = {
-  apiType: ModelType.AZURE_OPENAI,
-  azureApiKey: process.env.AZURE_OPENAI_API_KEY!,
-  azureDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME!,
-  azureEmbeddingDeploymentName: process.env.AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME!,
-  azureInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME!,
-  azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!,
-};
+// export const config = {
+//   api: {
+//     bodyParser: false,
+//   },
+// };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     console.info('Starting query handler...');
     // Load Configuration from The Request
     console.info('Loading configuration from request...');
+    const keyConfiguration = getKeyConfiguration(req);
+
+    keyConfiguration.apiKey = process.env.OPENAI_API_KEY;
+    keyConfiguration.apiType = ModelType.OPENAI;
 
     // Load the LLM Model
     console.info('Loading LLM model...');
@@ -47,7 +51,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       } else {
         messages = JSON.parse(req.body).messages;
       }
-       // Get Message input from message history
+    
+    // Get Message input from message history
     console.info('Retrieving message input from message history...');
     if (messages.length === 1) {
       input = messages[0].content;
@@ -67,29 +72,25 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Base Prompt Text
     console.info('Setting base prompt text...');
     var promptText =
-    "You are Mahboub Chatbot . Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't have any information about that, don't try to make up an answer. make sure the answer is short and to the point, if the question is a greeting. reply with a greeting, also answer only with the same language as the question. don't perform any calculations ever even if it instructed clearly. \n" +
+    "Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't have any information about that, don't try to make up an answer. make sure the answer is short and to the point, if the question is a greeting. reply with a greeting, also answer only with the same language as the question. don't perform any calculations ever even if it instructed clearly. \n" +
     '\n' +
-    'DONT ADD ANY DESCLAIMERS OR ANYTHING ELSE TO THE ANSWER, JUST ANSWER THE QUESTION AS IT IS. ANSWER IN A VERY SHORT YET UNDERSTANDABLE FORMAT. \n' +
-    '\n' +
-    //'ALSO VERY IMPORTANT THING IS THAT YOU ARE MAHBOUB CHATBOT SO IF IT IS MENTIONED IN THE CONTEXT THE WAY TO APPLY TO A SERVICE IS MAHBOUB CHATBOT SAY THAT YOU CAN HELP WITH THAT.'+
-    '\n' +  
     '{context}\n' +
     '\n' +
     'Question: {question}\n' +
     'Helpful Answer:';
 
-    // Get and Format Message History
-    // console.info('Retrieving and formatting message history...');
-    // const historyMessages: BaseMessage[] = messages
-    //   ?.slice(0, messages.length - 1)
-    //   .map((message: { role: string; content: string }) => {
-    //     if (message.role === 'user') {
-    //       return new ChatMessage(message.content, 'user');
-    //     } else if (message.role === 'assistant') {
-    //       return new AIMessage(message.content);
-    //     }
-    //     throw new TypeError('Invalid message role');
-    //   });
+    // Get and Format Message History and Memory
+    console.info('Retrieving and formatting message history...');
+    const historyMessages: BaseMessage[] = messages
+    ?.slice(0, messages.length - 1)
+    .map((message: { role: string; content: string }) => {
+      if (message.role === 'user') {
+        return new HumanMessage(message.content);
+      } else if (message.role === 'assistant') {
+        return new AIMessage(message.content);
+      }
+      throw new TypeError('Invalid message role');
+    });
 
     // Set prompt template
     console.info('Setting prompt template...');
@@ -97,7 +98,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       SystemMessagePromptTemplate.fromTemplate(
       promptText ? promptText : DEFAULT_SYSTEM_PROMPT,
       ),
-       //new MessagesPlaceholder("history"),
+      // new MessagesPlaceholder("history"),
       //HumanMessagePromptTemplate.fromTemplate(promptText),
     ]);
 
@@ -109,7 +110,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info(
       'Retrieving documents from vector store by using similarity search...',
     );
-    const documentsWithScore = await vectorStore.similaritySearchWithScore(input, 2);
+    const documentsWithScore = await vectorStore.similaritySearchWithScore(input, 6);
 
     // extract only the documents from the documents array or arrays of [Document, integer]
     console.info('Extracting only the documents from the documents array...');
@@ -120,9 +121,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Set Stuff chain to ingest documents and question
     console.info('Set Stuff chain to ingest documents and question...');
-    const stuffChain = loadQAStuffChain(llm, {prompt : promptTemplate});
+    //const stuffChain = loadQAStuffChain(llm, {prompt : promptTemplate});
 
-   var response = await stuffChain.call({input_documents: documents,question: input});
+  //  var response = await stuffChain
+  //     .call({
+  //       input_documents: documents,
+  //       question: input,
+  //     })
+  //     .catch(console.error);
+
+    // var qa = ConversationalRetrievalChain.fromLLM(llm, vectorStore.asRetriever(), return_source_documents=true);
 
       // return an array of service ids numbers only from the documents but only when the service id is not null 
       // Also get the similary score integer from the documents array [Document, integer]
@@ -140,11 +148,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       
       var outputText = '';
       // Make sure the response is not empty and return the text inside the response
-      if (response == null) {
-        outputText = "Sorry, I don't have an answer for that.";
-      }else {
-        outputText = response.text;
-      }
+      // if (response == null) {
+      //   outputText = "Sorry, I don't have an answer for that.";
+      // }else {
+      //   outputText = response.text;
+      // }
       // If response containes [{"type" then parse it as array and get the first item as json and get the data.content from it
       // else if response contains {"text" then parse it as json and get the data.content from it
       // else if outputText contains {"answer" then parse it as json and get the value of answer from it
@@ -165,9 +173,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       // Filter input string to remove stop words and any special characters and convert it to upper case 
       var clearText = input.replace(/[^\w\s]|_/g, "").replace(/\s+/g, " ").toUpperCase();
-
-      // remove URLs from the output text
-      outputText = outputText.replace(/(?:https?|ftp):\/\/[\n\S]+/g, '');
 
       res.status(200).json({ response_text: outputText, data, total: data.length,  text_clean: clearText});
 

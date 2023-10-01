@@ -3,6 +3,7 @@ import {EPubLoader} from "langchain/document_loaders/fs/epub";
 import {DocxLoader} from "langchain/document_loaders/fs/docx";
 import {TextLoader} from "langchain/document_loaders/fs/text";
 import {CSVLoader } from "langchain/document_loaders/fs/csv";
+import {JSONLoader} from "langchain/document_loaders/fs/json";
 import { DirectoryLoader } from "langchain/document_loaders/fs/directory";
 import {DocumentLoader} from "langchain/dist/document_loaders/base";
 import { UnstructuredLoader } from "langchain/document_loaders/fs/unstructured";
@@ -31,6 +32,9 @@ export function getDocumentLoader(fileType: string, filePath: string): DocumentL
             return loader;
         case "csv":
             loader = new CSVLoader(filePath);
+            return loader;
+        case "json":
+            loader = new JSONLoader(filePath);
             return loader;
         default:
             loader = new UnstructuredLoader(filePath);

@@ -3,7 +3,7 @@ import { Document } from "langchain/dist/document";
 import { TokenTextSplitter } from "langchain/text_splitter";
 
 export function getSplitterDocument(keyConfiguration: KeyConfiguration, documents: Document[]): Promise<Document[]> {
-    const chunkSize = keyConfiguration.apiKey === ModelType.AZURE_OPENAI ? 4000 : 2000;
+    const chunkSize = keyConfiguration.apiType === ModelType.AZURE_OPENAI ? 4000 : 2000;
     const splitter = new TokenTextSplitter({
         chunkSize: chunkSize,
         chunkOverlap: 200,
