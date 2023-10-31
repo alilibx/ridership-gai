@@ -22,15 +22,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   var promptText = "respond only from context, and make sure that you respond in one sentence, if i said 'how are you' or any greeting you should respond with a greeting like 'i am fine' or 'i am fine, how are you', if the question is not in the context say 'i don't have any information about that'";
 
-  const historyMessages: BaseChatMessage[] = messages?.slice(0, messages.length - 1)
-  .map((message) => {
-    if (message.role === 'user') {
-      return new HumanChatMessage(message.content);
-    } else if (message.role === 'assistant') {
-      return new AIChatMessage(message.content);
-    }
-    throw new TypeError('Invalid message role');
-  });
+  // const historyMessages: BaseChatMessage[] = messages?.slice(0, messages.length - 1)
+  // .map((message) => {
+  //   if (message.role === 'user') {
+  //     return new HumanChatMessage(message.content);
+  //   } else if (message.role === 'assistant') {
+  //     return new AIChatMessage(message.content);
+  //   }
+  //   throw new TypeError('Invalid message role');
+  // });
 
   try {
     const llm = await getChatModel(keyConfiguration, res);
@@ -43,7 +43,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     const memory = new BufferMemory({
       returnMessages: true,
-      chatHistory: new ChatMessageHistory(historyMessages),
+      chatHistory: new ChatMessageHistory(),
     });
 
     const chain = new LLMChain({
