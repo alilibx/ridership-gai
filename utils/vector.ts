@@ -1,40 +1,24 @@
-import {SupabaseFilterRPCCall, SupabaseVectorStore} from "langchain/vectorstores/supabase";
-import  { MemoryVectorStore} from 'langchain/vectorstores/memory'
+import { SupabaseVectorStore} from "langchain/vectorstores/supabase";
+import { Chroma } from "langchain/vectorstores/chroma";
 import {createClient} from "@supabase/supabase-js";
 import {Document} from "langchain/dist/document";
-import {OPENAI_TYPE, SUPABASE_KEY, SUPABASE_URL, DOCUMENT_FILE_PATH} from "@/utils/app/const";
+import {SUPABASE_KEY, SUPABASE_URL, CHROMA_URL} from "@/utils/app/const";
 import {getEmbeddings} from "@/utils/embeddings";
-import { getSplitterDocument } from "@/utils/langchain/splitter";
-import { getDocumentLoader } from "@/utils/langchain/documentLoader";
 import { KeyConfiguration, ModelType } from "@/types";
+import { ChromaClient } from 'chromadb'
 
-
+const chromaURl = CHROMA_URL || 'http://localhost:8000';  
+const chromaClient = new ChromaClient({path: chromaURl});
 const client = createClient(SUPABASE_URL!, SUPABASE_KEY!);
 
-export const getVectorStore = async (keyConfiguration: KeyConfiguration, texts: string[], metadata: object, isMemory : boolean) => {
-    if (isMemory) {
-        // Return a memory vector store
-        const loader = getDocumentLoader("json",DOCUMENT_FILE_PATH );
-        const document = await loader.load();
-        const splitDocuments = await getSplitterDocument(keyConfiguration, document);
-        return await MemoryVectorStore.fromDocuments(splitDocuments, await getEmbeddings(keyConfiguration));
-    }else{
-        return await SupabaseVectorStore.fromTexts(texts, metadata, await getEmbeddings(keyConfiguration),
-            {
-                client,
-                tableName: "documents",
-                queryName: "match_documents",
-            }
-        );
-    }
-}
 
 export const getExistingVectorStore = async (keyConfiguration: KeyConfiguration, isMemory : boolean) => {
     if (isMemory) {
-        const loader = getDocumentLoader("json",DOCUMENT_FILE_PATH);
-        const documents = await loader.load();
-        // const splitDocuments = await getSplitterDocument(keyConfiguration, document);
-        return await MemoryVectorStore.fromDocuments(documents, await getEmbeddings(keyConfiguration));
+          var chromaURl = CHROMA_URL || 'http://localhost:8000';
+          return await Chroma.fromExistingCollection(
+            await getEmbeddings(keyConfiguration),
+            { collectionName: "documents_collection" }
+          );
     }else{
         return await SupabaseVectorStore.fromExistingIndex(await getEmbeddings(keyConfiguration),
             {
@@ -48,10 +32,18 @@ export const getExistingVectorStore = async (keyConfiguration: KeyConfiguration,
 
 export const saveEmbeddings = async (keyConfiguration: KeyConfiguration, documents: Document[], isMemory: boolean) => {
     if (isMemory) {
-        const loader = getDocumentLoader("json",DOCUMENT_FILE_PATH );
-        const document = await loader.load();
-        const splitDocuments = await getSplitterDocument(keyConfiguration, document);
-        return await MemoryVectorStore.fromDocuments(splitDocuments, await getEmbeddings(keyConfiguration));
+        
+        const vectorStore = new Chroma(await getEmbeddings(keyConfiguration), {
+            collectionName: "documents_collection",
+            url: chromaURl, // Optional, will default to this value
+          });
+
+        for (const doc of documents) {
+            console.log("Adding document to Chroma");
+            console.log(doc);
+            await vectorStore.addDocuments([doc]);
+        }
+
     }else{
         const supabaseVectorStore = new SupabaseVectorStore(await getEmbeddings(keyConfiguration),
             {client, tableName: "documents", queryName: "match_documents"});
@@ -65,4 +57,14 @@ export const saveEmbeddings = async (keyConfiguration: KeyConfiguration, documen
             await supabaseVectorStore.addDocuments(documents);
         }
     }
+}
+
+
+// function to delete collection from Chroma
+export const deleteCollection = async () => {
+    await chromaClient.listCollections().then(async (collections) => {
+        for (const collection of collections) {
+            await chromaClient.deleteCollection({name: collection.name});
+        }
+    });
 }

@@ -10,6 +10,8 @@ import { UnstructuredLoader } from "langchain/document_loaders/fs/unstructured";
 
 export function getDocumentLoader(fileType: string, filePath: string): DocumentLoader {
     let loader;
+    // if filyType has a dot in front of it, remove it
+    fileType = fileType.replace(/^\./, "");
     switch (fileType) {
         case "pdf":
             loader = new PDFLoader(filePath, {
