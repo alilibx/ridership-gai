@@ -5,6 +5,8 @@ export const ISMEMORY_VECTOR_STORE = true;
 
 export const DOCUMENT_FILE_PATH = process.env.NEXT_PUBLIC_CHAT_FILES_UPLOAD_PATH + '/All_services_list.json';
 
+export const SERVICES_DOCUMENTS_FOLDER_PATH = process.env.SERVICES_DOCUMENTS_FOLDER_PATH;
+
 export const CHAT_FILES_MAX_SIZE =
     parseInt(process.env.NEXT_PUBLIC_CHAT_FILES_MAX_SIZE || '') || 0;
 
@@ -13,7 +15,7 @@ export const NEXT_PUBLIC_CHAT_FILES_UPLOAD_PATH = process.env.NEXT_PUBLIC_CHAT_F
 export const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 // if (!SUPABASE_KEY) throw new Error(`Expected SUPABASE_SERVICE_ROLE_KEY`)
 
-export const SUPABASE_URL = process.env.SUPABASE_URL
+//export const SUPABASE_URL = process.env.SUPABASE_URL
 // if (!SUPABASE_URL) throw new Error(`Expected env var SUPABASE_URL`)
 
 export const CHROMA_URL = process.env.CHROMA_URL;

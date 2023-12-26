@@ -87,10 +87,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Get Existing Vector Store
     console.info('Retrieving existing vector store...');
-    const vectorStore = await getExistingVectorStore(
-      keyConfiguration,
-      ISMEMORY_VECTOR_STORE,
-    );
+    const vectorStore = await getExistingVectorStore(keyConfiguration);
 
     // Retrieving documents from vector store by using similarity search
     console.info(

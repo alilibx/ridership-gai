@@ -16,7 +16,7 @@ import {
   HumanMessagePromptTemplate,
   SystemMessagePromptTemplate,
 } from 'langchain/prompts';
-import { DEFAULT_SYSTEM_PROMPT, ISMEMORY_VECTOR_STORE } from '@/utils/app/const';
+import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
 import { ChatBody, ModelType, Message } from '@/types';
 
 // export const config = {
@@ -104,7 +104,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Get Existing Vector Store
     console.info('Retrieving existing vector store...');
-    const vectorStore = await getExistingVectorStore(keyConfiguration, ISMEMORY_VECTOR_STORE);
+    const vectorStore = await getExistingVectorStore(keyConfiguration);
 
     // Retrieving documents from vector store by using similarity search
     console.info(

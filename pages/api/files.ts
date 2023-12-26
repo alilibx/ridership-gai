@@ -1,13 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import multer from 'multer';
 import fs from 'fs';
-import { ISMEMORY_VECTOR_STORE, NEXT_PUBLIC_CHAT_FILES_UPLOAD_PATH } from "@/utils/app/const";
+import {NEXT_PUBLIC_CHAT_FILES_UPLOAD_PATH } from "@/utils/app/const";
 import { getDocumentLoader } from '@/utils/langchain/documentLoader';
 import { getSplitterDocument } from '@/utils/langchain/splitter';
-import { deleteCollection, saveEmbeddings } from '@/utils/vector';
+import { deleteCollectionIfExists, saveEmbeddings } from '@/utils/vector';
 import { KeyConfiguration, ModelType } from '@/types';
-import { v4 as uuidv4 } from 'uuid';
-import formidable from 'formidable';
 import path from 'path';
 
 interface NextApiRequestWithFile extends NextApiRequest {
@@ -80,7 +78,7 @@ const handler = async (req: NextApiRequestWithFile, res: NextApiResponse) => {
             }
         });        
     } else if (req.method === 'DELETE') {
-        deleteCollection();
+        deleteCollectionIfExists();
         console.log('Collection deleted successfully');
         res.status(200).json({ message: 'Collection deleted successfully' });
     } else {
@@ -112,7 +110,7 @@ const embeddFile = async (fileName: string, fileType: string) => {
         doc.metadata = { file_name: fileName, ...extractData(doc.pageContent) };
     });
     try {
-        await saveEmbeddings(keyConfiguration, splitDocuments, ISMEMORY_VECTOR_STORE);
+        await saveEmbeddings(keyConfiguration, splitDocuments);
         console.log("Embedding saved successfully");
     } catch (e) {
         console.error('Error saving embeddings:', e);
