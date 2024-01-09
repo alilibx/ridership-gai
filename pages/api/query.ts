@@ -79,7 +79,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Set prompt template
     console.info('Setting prompt template...');
-    const promptTemplate = ChatPromptTemplate.fromPromptMessages([
+    const promptTemplate = ChatPromptTemplate.fromMessages([
       SystemMessagePromptTemplate.fromTemplate(
         promptText ? promptText : DEFAULT_SYSTEM_PROMPT,
       ),
@@ -95,7 +95,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     );
     const documentsWithScore = await vectorStore.similaritySearchWithScore(
       input,
-      2,
+      10,
     );
 
     // extract only the documents from the documents array or arrays of [Document, integer]
@@ -110,16 +110,20 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info('Set Stuff chain to ingest documents and question...');
     const stuffChain = loadQAStuffChain(llm);
 
+    // Get the top 2 documents 
+    console.info('Get the top 2 documents...');
+    const top2Documents = documents.slice(0, 2);
+
     var response = await stuffChain.call({
-      input_documents: documents,
-      question: input,
+      input_documents: top2Documents,
+      question: input + " in RTA",
     });
 
 
     // return an array of service ids numbers only from the documents but only when the service id is not null
     // Also get the similary score integer from the documents array [Document, integer]
     const data = documentsWithScore
-      .map((doc) => {
+      .map((doc) => {        
         return {
           unique_id: doc[0].metadata.unique_id,
           title: doc[0].metadata.name,
@@ -130,7 +134,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         };
       })
       .filter((doc) => doc.unique_id != null);
-
+    
+    // Remove items with duplicate unique_id
+    var filterdData = data.filter((value, index, self) =>
+      index === self.findIndex((t) => t.unique_id === value.unique_id),
+    );
     var outputText = '';
     // Make sure the response is not empty and return the text inside the response
     if (response == null) {
@@ -166,8 +174,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       .status(200)
       .json({
         response_text: outputText,
-        data,
-        total: data.length,
+        filterdData,
+        total: filterdData.length,
         text_clean: clearText,
       });
 
