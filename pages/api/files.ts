@@ -4,7 +4,7 @@ import fs from 'fs';
 import {NEXT_PUBLIC_CHAT_FILES_UPLOAD_PATH } from "@/utils/app/const";
 import { getDocumentLoader } from '@/utils/langchain/documentLoader';
 import { getSplitterDocument } from '@/utils/langchain/splitter';
-import { deleteCollectionIfExists, saveEmbeddings } from '@/utils/vector';
+import { deleteChromaCollectionIfExists, saveEmbeddingsChroma } from '@/utils/vector';
 import { KeyConfiguration, ModelType } from '@/types';
 import path from 'path';
 
@@ -78,7 +78,7 @@ const handler = async (req: NextApiRequestWithFile, res: NextApiResponse) => {
             }
         });        
     } else if (req.method === 'DELETE') {
-        deleteCollectionIfExists();
+        deleteChromaCollectionIfExists();
         console.log('Collection deleted successfully');
         res.status(200).json({ message: 'Collection deleted successfully' });
     } else {
@@ -110,7 +110,7 @@ const embeddFile = async (fileName: string, fileType: string) => {
         doc.metadata = { file_name: fileName, ...extractData(doc.pageContent) };
     });
     try {
-        await saveEmbeddings(keyConfiguration, splitDocuments);
+        await saveEmbeddingsChroma(keyConfiguration, splitDocuments);
         console.log("Embedding saved successfully");
     } catch (e) {
         console.error('Error saving embeddings:', e);

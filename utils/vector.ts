@@ -80,6 +80,40 @@ export const countDocumentsInChromaCollection = async () => {
     return count;
 }
 
+export const countDocumentsByMetadata= async() =>{
+
+    const collection = await chromaClient.getCollection({name:"documents_collection"});
+   
+    if(!collection) {
+        return 0;
+    }
+
+    // Get Documents from collection 
+    const response = await collection.get();
+    const metadata = response.metadatas;
+    // Get unique serviceTypes and languages from metadata
+    const serviceTypes = [...new Set(metadata.map(item => item.serviceType))];
+    const languages = [...new Set(metadata.map(item => item.language))];
+    // Now from the metadata count the number of documents based on serviceType and language
+    const countByServiceTypeAndLanguage: Record<string, Record<string, number>> = {};
+
+    metadata.forEach((item) => {
+      const { serviceType, language } = item;
+      if (!countByServiceTypeAndLanguage[serviceType]) {
+        countByServiceTypeAndLanguage[serviceType] = {};
+      }
+      if (!countByServiceTypeAndLanguage[serviceType][language]) {
+        countByServiceTypeAndLanguage[serviceType][language] = 0;
+      }
+      countByServiceTypeAndLanguage[serviceType][language]++;
+    });
+
+    
+
+    console.log(countByServiceTypeAndLanguage);
+    return countByServiceTypeAndLanguage;
+}
+
 export const deleteDocumentsFromChromaCollection = async (type?: string, language ?: string) => {
 
     var filterObject = {};
