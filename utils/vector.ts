@@ -46,8 +46,7 @@ export const saveEmbeddingsChroma = async (keyConfiguration: KeyConfiguration, d
         for (const doc of documents) {
             currentDocument++;
             updateProgressBar(currentDocument, totalDocuments);
-            await vectorStore.addDocuments([doc]);
-            
+            await vectorStore.addDocuments([doc]);            
         }
         updateStatusText(documents.length +"Initializing Chroma with collection documents_collection");
     }catch(error){
@@ -55,19 +54,31 @@ export const saveEmbeddingsChroma = async (keyConfiguration: KeyConfiguration, d
     }
 }
 
+export const collectionExists = async () => {
+    const collectionExists = await chromaClient.listCollections();
+    if(collectionExists.length == 0 || !collectionExists.find((collection) => collection.name === "documents_collection")){
+        return false;
+    }else{
+        return true;
+    }
+}
+
 
 // function to delete collection documents_collection if exists
 export const deleteChromaCollectionIfExists = async () => {
     try{
-        const collectionExists = await chromaClient.getCollection({name:"documents_collection"});
-        updateStatusText("Collection documents_collection exists?: " + collectionExists? "Yes" : "No");
-        if (collectionExists) {
+        const isCollectionExists = await collectionExists();
+        if (isCollectionExists) {
             updateStatusText("Deleting Collection documents_collection");
             await chromaClient.deleteCollection({name: "documents_collection"});
             updateStatusText("Collection documents_collection deleted");
+        }else{
+            updateStatusText("Collection documents_collection does not exist");
+            return "Collection documents_collection does not exist";
         }
     } catch(error){
         updateStatusText("Collection documents_collection does not exist");
+        return error;
     }
 }
 
@@ -91,22 +102,21 @@ export const countDocumentsByMetadata= async() =>{
     // Get Documents from collection 
     const response = await collection.get();
     const metadata = response.metadatas;
-    // Get unique serviceTypes and languages from metadata
-    const serviceTypes = [...new Set(metadata.map(item => item.serviceType))];
-    const languages = [...new Set(metadata.map(item => item.language))];
     // Now from the metadata count the number of documents based on serviceType and language
     const countByServiceTypeAndLanguage: Record<string, Record<string, number>> = {};
 
-    metadata.forEach((item) => {
-      const { serviceType, language } = item;
-      if (!countByServiceTypeAndLanguage[serviceType]) {
-        countByServiceTypeAndLanguage[serviceType] = {};
+  metadata.forEach((item) => {
+    const { serviceType, language } = item ?? {};
+    if (serviceType && language) {
+      if (!countByServiceTypeAndLanguage[String(serviceType)]) {
+        countByServiceTypeAndLanguage[String(serviceType)] = {};
       }
-      if (!countByServiceTypeAndLanguage[serviceType][language]) {
-        countByServiceTypeAndLanguage[serviceType][language] = 0;
+      if (!countByServiceTypeAndLanguage[String(serviceType)][String(language)]) {
+        countByServiceTypeAndLanguage[String(serviceType)][String(language)] = 0;
       }
-      countByServiceTypeAndLanguage[serviceType][language]++;
-    });
+      countByServiceTypeAndLanguage[String(serviceType)][String(language)]++;
+    }
+  });
 
     
 
@@ -127,20 +137,27 @@ export const deleteDocumentsFromChromaCollection = async (type?: string, languag
     }
     
     const collection = await chromaClient.getCollection({name:"documents_collection"});
-    // Output the number of documents in the collection
-    const count = await collection.count();
-    updateStatusText("Number of documents in the collection: (Before Deletion)" + count );
-    // If neither type nor language is provided, delete all documents
-    if (!type && !language) {
-        updateStatusText("Deleting all Documents from Collection documents_collection");
-        await chromaClient.deleteCollection({name: "documents_collection"});
-    }else{
-        updateStatusText("Deleting Documents from Collection documents_collection");
-       await collection.delete({where: filterObject});
+    try{
+        if (collection) {
+            // Output the number of documents in the collection
+            const count = await collection.count();
+            updateStatusText("Number of documents in the collection: (Before Deletion)" + count );
+            // If neither type nor language is provided, delete all documents
+            if (!type && !language) {
+                updateStatusText("Deleting all Documents from Collection documents_collection");
+                await chromaClient.deleteCollection({name: "documents_collection"});
+            }else{
+                updateStatusText("Deleting Documents from Collection documents_collection");
+            await collection.delete({where: filterObject});
+            }
+            const countAfter = await collection.count();
+            updateStatusText("Number of documents in the collection (After Deletion): " + countAfter );
+            
+            updateStatusText(type+" Documents deleted from Collection documents_collection");
+        }else{
+            updateStatusText("Collection documents_collection does not exist");
+        }
+    } catch(error){
+        updateStatusText("Error deleting documents from Collection documents_collection");
     }
-    const countAfter = await collection.count();
-    updateStatusText("Number of documents in the collection (After Deletion): " + countAfter );
-    
-    updateStatusText(type+" Documents deleted from Collection documents_collection");
-    
 }

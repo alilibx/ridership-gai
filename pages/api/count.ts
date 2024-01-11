@@ -1,12 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import multer from 'multer';
-import fs from 'fs';
-import {SERVICES_DOCUMENTS_FOLDER_PATH } from "@/utils/app/const";
-import { getSplitterDocument } from '@/utils/langchain/splitter';
-import { deleteChromaCollectionIfExists, saveEmbeddingsChroma, saveEmbeddingsLocally, countDocumentsInChromaCollection, deleteDocumentsFromChromaCollection, countDocumentsByMetadata } from '@/utils/vector';
-import { KeyConfiguration, ModelType } from '@/types';
-import path from 'path';
-import { updateStatusText } from '@/utils/app/logging';
+
+import { countDocumentsInChromaCollection,countDocumentsByMetadata, collectionExists } from '@/utils/vector';
+
 
 export const config = {
     api: {
@@ -19,11 +14,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     if (req.method === 'GET') {
             try {            
-               
-                res.status(200).json({ totalDocuments: await countDocumentsInChromaCollection(), totalDocumentsByType: await countDocumentsByMetadata() });
+                if(await collectionExists()){              
+                    res.status(200).json({ totalDocuments: await countDocumentsInChromaCollection(), totalDocumentsByType: await countDocumentsByMetadata() });
+                }else{
+                    res.status(200).json({message: "Collection does not exist"});
+                }
             } catch (error) {
-                console.error('Error during file embedding:', error);
-                return res.status(500).json({ message: 'Error during file embedding' });
+                console.error('Error getting count from Chroma:', error);
+                return res.status(500).json({ message: 'Error getting count from Chroma' });
             }       
     } else {
         res.setHeader('Allow', ['GET']);

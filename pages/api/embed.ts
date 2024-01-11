@@ -40,7 +40,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === 'POST') {
             try {            
                 // Delete the collection if exists
-                deleteDocumentsFromChromaCollection(type, language);
+                deleteChromaCollectionIfExists();
 
                 // Embedding the English file
                 if ((type === 'all' || type === 'idos' || !type) && (language === 'en' || !language)) {
@@ -72,6 +72,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 console.error('Error during file embedding:', error);
                 return res.status(500).json({ message: 'Error during file embedding' });
             }       
+    } else if(req.method === 'DELETE'){
+        // Delete the collection if exists
+        var message = await deleteChromaCollectionIfExists();
+        res.send({ message: message});
     } else {
         res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
