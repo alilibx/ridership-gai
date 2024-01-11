@@ -2,11 +2,11 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import multer from 'multer';
 import fs from 'fs';
 import {SERVICES_DOCUMENTS_FOLDER_PATH } from "@/utils/app/const";
-import { getDocumentLoader } from '@/utils/langchain/documentLoader';
 import { getSplitterDocument } from '@/utils/langchain/splitter';
-import { deleteCollectionIfExists, saveEmbeddings } from '@/utils/vector';
+import { deleteChromaCollectionIfExists, saveEmbeddingsChroma, saveEmbeddingsLocally, countDocumentsInChromaCollection, deleteDocumentsFromChromaCollection } from '@/utils/vector';
 import { KeyConfiguration, ModelType } from '@/types';
 import path from 'path';
+import { updateStatusText } from '@/utils/app/logging';
 
 export const config = {
     api: {
@@ -28,71 +28,87 @@ const keyConfiguration: KeyConfiguration = {
 
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-    console.log("Beginning files handler");
 
     const englishFilePath = path.join(folderPath, 'en/All_services_list.json');
     const arabicFilePath = path.join(folderPath, 'ar/All_services_list.json');
+    const nonIdosEnglishFilePath = path.join(folderPath, 'en/All_services_list_gai.json');
+    const nonIdosArabicFilePath = path.join(folderPath, 'ar/All_services_list_gai.json');
+
+    const type = Array.isArray(req.query.type) ? req.query.type[0] : req.query.type;
+    const language = Array.isArray(req.query.language) ? req.query.language[0] : req.query.language;
 
     if (req.method === 'POST') {
-            try {
+            try {            
                 // Delete the collection if exists
-                deleteCollectionIfExists();
+                deleteDocumentsFromChromaCollection(type, language);
 
                 // Embedding the English file
-                await embeddFile(englishFilePath);
-                console.log('English Services Embedded successfully');
-
+                if ((type === 'all' || type === 'idos' || !type) && (language === 'en' || !language)) {
+                updateStatusText('Embedding English Services Documents...');
+                await embeddFile(englishFilePath, "idos", "en");
+                updateStatusText('English Services Embedded successfully');
+                }
+                
                 // Embedding the Arabic file
-                await embeddFile(arabicFilePath);
-                console.log('Arabic Services Embedded successfully');
-        
-                res.status(200).json({ message: 'Document Embedding for IDOS Services processed successfully', filePath: englishFilePath });
+                if ((type === 'all' || type === 'idos' || !type) && (language === 'ar' || !language)) {
+                updateStatusText('Embedding Arabic Services Documents...');
+                await embeddFile(arabicFilePath , "idos", "ar");
+                updateStatusText('Arabic Services Embedded successfully');
+                }
+                
+                // Embedding the Non Idos English file
+                if ((type === 'all' || type === 'nonIdos' || !type) && (language === 'en' || !language)) {
+                await embeddFile(nonIdosEnglishFilePath , "nonIdos", "en");
+                updateStatusText('Non IDOS English Services Embedded successfully');
+                }
+                
+                // Embedding the Non Idos Arabic file
+                if ((type === 'all' || type === 'nonIdos' || !type) && (language === 'ar' || !language)) {
+                await embeddFile(nonIdosArabicFilePath , "nonIdos", "ar");
+                updateStatusText('Non IDOS Arabic Services Embedded successfully');
+                }
+                res.status(200).json({ message: (await countDocumentsInChromaCollection()).toString() + ' Documents Embedded successfully'});
             } catch (error) {
                 console.error('Error during file embedding:', error);
                 return res.status(500).json({ message: 'Error during file embedding' });
             }       
-    } else if (req.method === 'DELETE') {
-        deleteCollectionIfExists();
-        console.log('Collection deleted successfully');
-        res.status(200).json({ message: 'Collection deleted successfully' });
     } else {
-        res.setHeader('Allow', ['POST', 'DELETE']);
+        res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 };
 
-function extractData(text: string): { unique_id: string, name: string } {
-    const uniqueIdRegex = /unique_id:\s*([^\n]+)/;
-    const nameRegex = /name:\s*([^\n]+)/;
 
-    const uniqueIdMatch = text.match(uniqueIdRegex);
-    const nameMatch = text.match(nameRegex);
-
-    return {
-        unique_id: uniqueIdMatch ? uniqueIdMatch[1].trim() : '',
-        name: nameMatch ? nameMatch[1].trim() : ''
-    };
-}
-
-const embeddFile = async (filePath: string) => {
-    console.log("Beginning embedding handler");
+const embeddFile = async (filePath: string, type?: string, language?: string) => {
+    updateStatusText("Beginning embedding handler");
 
     const fileContent = extractContentFromJsonFile(filePath);
-    console.log("File content extracted successfully");
+    // If file doesnt   exist return an empty array
+    if (!fileContent) {
+        updateStatusText("File content not found");
+        return;
+    }
+    updateStatusText("File content extracted successfully");
 
     // Generate documents from the file content
     const documents = fileContent.map((content: any) => {
+        // Append type and language to the metadata 
+        const metadata = {
+            ...content.metadata,
+            serviceType: type,
+            language: language
+        }
         return {
             pageContent: content.content,
-            metadata: content.metadata,
+            metadata: metadata
         };
     });
-    console.log("Documents generated successfully");
+    updateStatusText("Documents generated successfully");
     const splitDocuments = await getSplitterDocument(keyConfiguration, documents);
-    console.log("Documents splitted successfully");
+    updateStatusText("Documents splitted successfully");
     try {
-        await saveEmbeddings(keyConfiguration, splitDocuments);
-        console.log("Embedding saved successfully");
+        await saveEmbeddingsChroma(keyConfiguration, splitDocuments);
+        updateStatusText("Embedding saved successfully");
     } catch (e) {
         console.error('Error saving embeddings:', e);
         throw e; // Rethrow to handle in the calling function
@@ -101,6 +117,10 @@ const embeddFile = async (filePath: string) => {
 
 // This function takes a JSON file and returns an array of objects each object has one string property called "content" with combined content of all the fields in each object in the JSON Array
 const extractContentFromJsonFile = (filePath: string) => {
+    // If file doesnt   exist return an empty array
+    if (!fs.existsSync(filePath)) {
+        return [];
+    }
     const fileContent = fs.readFileSync(filePath, 'utf8');
     const jsonArray = JSON.parse(fileContent).allservices;
     const contentArray = jsonArray.map((item: any) => {

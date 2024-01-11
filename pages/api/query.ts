@@ -112,11 +112,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Get the top 2 documents 
     console.info('Get the top 2 documents...');
-    const top2Documents = documents.slice(0, 2);
+    const ingestedDocuments = documents.slice(0, 3);
 
     var response = await stuffChain.call({
-      input_documents: top2Documents,
-      question: input + " in RTA",
+      input_documents: ingestedDocuments,
+      question: input,
     });
 
 
@@ -130,7 +130,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           level: 0,
           // The lower the score the better the match but i need to make the higher the score the better the match
           // Then multiply by 100 and then add 50 to make the score between 50 and 100
-          score: Math.round((1 - doc[1]) * 100) + 50,
+          //score: Math.round((1 - doc[1]) * 100) + 50,
+          score: Math.round((1 - doc[1]) * 250),
         };
       })
       .filter((doc) => doc.unique_id != null);
@@ -161,6 +162,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       outputText = responseJson.data.content;
     }
 
+    // If the output text contains an indication that the model doen't have an answer or dosent know 
+    // have a flag that sais understanding = false and then return the output text
+    // TODO: Make this more intelligent
+    var response = await stuffChain.call({
+      input_documents: ingestedDocuments,
+      question: input,
+    });
+    
+
     // Filter input string to remove stop words and any special characters and convert it to upper case
     var clearText = input
       .replace(/[^\w\s]|_/g, '')
@@ -174,7 +184,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       .status(200)
       .json({
         response_text: outputText,
-        filterdData,
+        data: filterdData,
         total: filterdData.length,
         text_clean: clearText,
       });
@@ -182,6 +192,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.log('Document Query Completed Successfully.');
     console.log('User Input: ', input);
     console.log('Model Response : ', outputText);
+    console.log('Number of Ouput Documents: ', filterdData.length);
   } catch (e) {
     console.log('error in handler: ', e);
     res.status(500).json({ responseMessage: (e as Error).toString() });
