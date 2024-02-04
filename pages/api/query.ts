@@ -5,12 +5,13 @@ import { loadQAStuffChain } from 'langchain/chains';
 import {
   ChatPromptTemplate,
   SystemMessagePromptTemplate,
-} from 'langchain/prompts';
+} from '@langchain/core/prompts';
 import {
   DEFAULT_SYSTEM_PROMPT,
   ISMEMORY_VECTOR_STORE,
 } from '@/utils/app/const';
 import { ChatBody, ModelType, Message, KeyConfiguration } from '@/types';
+import { OpenAIChat } from "langchain/llms/openai";
 
 const keyConfiguration: KeyConfiguration = {
   apiType: ModelType.AZURE_OPENAI,
@@ -84,6 +85,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         promptText ? promptText : DEFAULT_SYSTEM_PROMPT,
       ),
     ]);
+
+    // Check the language of the input
+    console.info('Check the language of the input...');
+    const language = isArabic(input)? 'ar' : 'en';
 
     // Get Existing Vector Store
     console.info('Retrieving existing vector store...');
@@ -160,15 +165,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     } else if (outputText.includes('{"message"')) {
       var responseJson = JSON.parse(outputText);
       outputText = responseJson.data.content;
-    }
-
-    // If the output text contains an indication that the model doen't have an answer or dosent know 
-    // have a flag that sais understanding = false and then return the output text
-    // TODO: Make this more intelligent
-    var response = await stuffChain.call({
-      input_documents: ingestedDocuments,
-      question: input,
-    });
+    } 
     
 
     // Filter input string to remove stop words and any special characters and convert it to upper case
@@ -179,6 +176,33 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // remove URLs from the output text
     outputText = outputText.replace(/(?:https?|ftp):\/\/[\n\S]+/g, '');
+
+    var outputLanguage = isArabic(outputText)? 'ar' : 'en';
+
+    // If the output is english and input language is arabic translate the output to arabic
+    if (outputLanguage === 'en' && language === 'ar') {
+      outputText = await translateTextToArabic(outputText, llm);
+    }
+
+    const notAvailable = await handleNotUnderstandingMessage(outputText, llm);
+    // If notAvailable contains the text NOTAVAILABLE return the output text
+
+
+    if(notAvailable.includes('NOTAVAILABLE') || notAvailable == 'NOTAVAILABLE') {
+      if(language === 'ar') {
+        outputText = "الرجاء مراجعة الخدمات التالية ، اذا لم تتمكن من العثور على الخدمة التي تبحث عنها، اسال سؤالك بطريقة اخرى.";
+      }else{
+        outputText = "Please look at below services, and if you can't find what you are looking for, rephrase your question.";
+      }
+      // var nonUnderstadningServices = {
+      //   level:0,
+      //   score:195,
+      //   title:'Greetings and Responses',
+      //   unique_id:'999999'
+      // }
+
+      // filterdData.unshift(nonUnderstadningServices);
+    }
 
     res
       .status(200)
@@ -198,5 +222,39 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     res.status(500).json({ responseMessage: (e as Error).toString() });
   }
 };
+
+
+function isArabic(text: string) {
+  // Check for presence of Arabic characters (Unicode range)
+  const arabicRegex = /[\u0600-\u06FF]/g;
+  return arabicRegex.test(text);
+}
+
+const translateTextToArabic = async (text: string, model : OpenAIChat) => {
+  const chatPrompt = ChatPromptTemplate.fromMessages([
+  ["human", "Translate text from English to Arabic. Text: {text}. output only the translation without any other text. output only the translated text "],
+  ]);
+
+  const chain = chatPrompt.pipe(model);
+  const response = await chain.invoke({
+    text: text,
+  });
+
+  return response;
+}
+
+const handleNotUnderstandingMessage = async (text: string, model : OpenAIChat) => {
+  const chatPrompt = ChatPromptTemplate.fromMessages([
+  ["human", "UserInput: {text}. if the UserInput message contains the words: i don't know or 'it's not available in the context' or 'I cannot determine the answer to the question' in any language write NOTAVAILABLE else write PASS. "],
+  ]);
+
+  const chain = chatPrompt.pipe(model);
+  const response = await chain.invoke({
+    text: text,
+  });
+
+  return response;
+}
+
 
 export default handler;
