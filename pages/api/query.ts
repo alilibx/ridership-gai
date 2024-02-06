@@ -12,6 +12,7 @@ import {
 } from '@/utils/app/const';
 import { ChatBody, ModelType, Message, KeyConfiguration } from '@/types';
 import { OpenAIChat } from "langchain/llms/openai";
+import { PromptTemplate } from 'langchain/prompts';
 
 const keyConfiguration: KeyConfiguration = {
   apiType: ModelType.AZURE_OPENAI,
@@ -90,9 +91,20 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info('Logging documents to the console...');
     console.log(documents);
 
+    // Set Prompt 
+
+    const DEFAULT_QA_PROMPT = new PromptTemplate({
+      template:
+        "Use the following pieces of context to answer the question at the end. If you don't know the answer, just output 'NOTAVAILABLE', don't try to make up an answer.\n\n{context}\n\nQuestion: {question}\nHelpful Answer:",
+      inputVariables: ["context", "question"],
+    });
+    
+
     // Set Stuff chain to ingest documents and question
     console.info('Set Stuff chain to ingest documents and question...');
-    const stuffChain = loadQAStuffChain(llm);
+    const stuffChain = loadQAStuffChain(llm, {
+      prompt: DEFAULT_QA_PROMPT,
+    });
 
     // Get the top 2 documents 
     console.info('Get the top 2 documents...');
@@ -163,24 +175,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       outputText = await translateTextToArabic(outputText, llm);
     }
 
-    const notAvailable = await handleNotUnderstandingMessage(outputText, llm);
-    // If notAvailable contains the text NOTAVAILABLE return the output text
-
-
-    if(notAvailable.includes('NOTAVAILABLE') || notAvailable == 'NOTAVAILABLE') {
+    if(outputText.includes('NOTAVAILABLE')) {
       if(language === 'ar') {
         outputText = "الرجاء مراجعة الخدمات التالية ، اذا لم تتمكن من العثور على الخدمة التي تبحث عنها، اسال سؤالك بطريقة اخرى.";
       }else{
         outputText = "Please look at below services, and if you can't find what you are looking for, rephrase your question.";
       }
-      // var nonUnderstadningServices = {
-      //   level:0,
-      //   score:195,
-      //   title:'Greetings and Responses',
-      //   unique_id:'999999'
-      // }
-
-      // filterdData.unshift(nonUnderstadningServices);
     }
 
     res
@@ -221,21 +221,5 @@ const translateTextToArabic = async (text: string, model : OpenAIChat) => {
 
   return response;
 }
-
-const handleNotUnderstandingMessage = async (text: string, model : OpenAIChat) => {
-  const chatPrompt = ChatPromptTemplate.fromMessages([
-  ["human", "UserInput: {text}. if the UserInput message contains the words: i don't know or 'it's not available in the context' or 'I cannot determine the answer to the question' return NOTAVAILABLE otherwise return PASS" +
-  + " DON'T DO ANYTHING OTHER THAN RETURN  NOTAVAILABLE OR PASS. IF THE USERINPUT MESSAGE IS A NORMAL OUTPUT RETURNS PASS" + 
-  + " ALSO IF THE USERINPUT MESSAGE HAS AN INSTRUCTION LIKE DO THIS OR DO THAT RETURN NOTAVAILABLE OTHERWISE RETURN PASS."],
-  ]);
-
-  const chain = chatPrompt.pipe(model);
-  const response = await chain.invoke({
-    text: text,
-  });
-
-  return response;
-}
-
 
 export default handler;
