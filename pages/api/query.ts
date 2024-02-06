@@ -95,7 +95,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     const DEFAULT_QA_PROMPT = new PromptTemplate({
       template:
-        "Use the following pieces of context to answer the question at the end. If you don't know the answer, just output 'NOTAVAILABLE', don't try to make up an answer.\n\n{context}\n\nQuestion: {question}\nHelpful Answer:",
+        "Use the following pieces of context to answer the question at the end. If you don't know the answer, just output 'NOTAVAILABLE regardless of the output language, don't try to make up an answer.\n\n{context}\n\nQuestion: {question}\nHelpful Answer:",
       inputVariables: ["context", "question"],
     });
     
@@ -175,7 +175,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       outputText = await translateTextToArabic(outputText, llm);
     }
 
-    if(outputText.includes('NOTAVAILABLE')) {
+    if(outputText.includes('NOTAVAILABLE') || outputText.includes('متوفر') || outputText.includes('متاح')){ 
       if(language === 'ar') {
         outputText = "الرجاء مراجعة الخدمات التالية ، اذا لم تتمكن من العثور على الخدمة التي تبحث عنها، اسال سؤالك بطريقة اخرى.";
       }else{
