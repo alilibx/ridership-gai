@@ -1,6 +1,6 @@
-import { KeyConfiguration, ModelType } from "@/types";
+import { KeyConfiguration, ModelType, VectorStoreTypes } from "@/types";
 import { NextApiRequest } from "next";
-import { AZURE_OPENAI_API_DEPLOYMENT_NAME, AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME, AZURE_OPENAI_API_INSTANCE_NAME, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, OPENAI_API_KEY, OPENAI_TYPE } from "./const";
+import { AZURE_OPENAI_API_DEPLOYMENT_NAME, AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME, AZURE_OPENAI_API_INSTANCE_NAME, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, OPENAI_API_KEY, OPENAI_TYPE, VECTOR_TYPE } from "./const";
 
 export const getKeyConfiguration = (req: NextApiRequest): KeyConfiguration => {
     const apiType = OPENAI_TYPE;
@@ -18,13 +18,15 @@ const getKeyConfigurationFromReqHeaders = (req: NextApiRequest): KeyConfiguratio
     const azureApiVersion = req.headers['x-azure-api-version'] as string;
     const azureDeploymentName = req.headers['x-azure-deployment-name'] as string;
     const azureEmbeddingDeploymentName = req.headers['x-azure-embedding-deployment-name'] as string;
+    const vectorStoreType = req.headers['x-vector-store-type'] as unknown as VectorStoreTypes;
     const keyConfiguration = { apiType: apiType as ModelType, 
         apiKey, 
         azureApiKey, 
         azureInstanceName, 
         azureApiVersion, 
         azureDeploymentName, 
-        azureEmbeddingDeploymentName
+        azureEmbeddingDeploymentName,
+        vectorStoreType
     };
     valideKeyConfiguration(keyConfiguration);
     return keyConfiguration;
@@ -38,6 +40,7 @@ const getKeyConfigurationFromEnvorinment = (): KeyConfiguration => {
     const azureApiVersion = AZURE_OPENAI_API_VERSION;
     const azureDeploymentName = AZURE_OPENAI_API_DEPLOYMENT_NAME;
     const azureEmbeddingDeploymentName = AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME;
+    const vectorStoreType = VECTOR_TYPE as unknown as VectorStoreTypes;
 
     const keyConfiguration = {
         apiType,
@@ -46,7 +49,8 @@ const getKeyConfigurationFromEnvorinment = (): KeyConfiguration => {
         azureInstanceName, 
         azureApiVersion, 
         azureDeploymentName, 
-        azureEmbeddingDeploymentName
+        azureEmbeddingDeploymentName,
+        vectorStoreType
     };
     valideKeyConfiguration(keyConfiguration);
     return keyConfiguration;

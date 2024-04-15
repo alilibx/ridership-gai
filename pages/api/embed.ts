@@ -1,12 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import multer from 'multer';
-import fs from 'fs';
+
 import {SERVICES_DOCUMENTS_FOLDER_PATH } from "@/utils/app/const";
 import { getSplitterDocument } from '@/utils/langchain/splitter';
-import { deleteChromaCollectionIfExists, saveEmbeddingsChroma, saveEmbeddingsLocally, countDocumentsInChromaCollection, deleteDocumentsFromChromaCollection } from '@/utils/vector';
-import { KeyConfiguration, ModelType } from '@/types';
+import { deleteChromaCollectionIfExists, saveEmbeddings, countDocumentsInChromaCollection, deleteDocumentsFromChromaCollection } from '@/utils/vector';
+import { KeyConfiguration, ModelType, VectorStoreTypes } from '@/types';
 import path from 'path';
 import { updateStatusText } from '@/utils/app/logging';
+import { extractContentFromJsonFile } from '@/utils/app/files';
 
 export const config = {
     api: {
@@ -24,6 +24,7 @@ const keyConfiguration: KeyConfiguration = {
     process.env.AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME!,
   azureInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME!,
   azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!,
+  vectorStoreType: VectorStoreTypes.memory
 };
 
 
@@ -40,7 +41,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === 'POST') {
             try {            
                 // Delete the collection if exists
-                deleteChromaCollectionIfExists();
+                //deleteChromaCollectionIfExists();
 
                 // Embedding the English file
                 if ((type === 'all' || type === 'idos' || !type) && (language === 'en' || !language)) {
@@ -111,7 +112,7 @@ const embeddFile = async (filePath: string, type?: string, language?: string) =>
     const splitDocuments = await getSplitterDocument(keyConfiguration, documents);
     updateStatusText("Documents splitted successfully");
     try {
-        await saveEmbeddingsChroma(keyConfiguration, splitDocuments);
+        await saveEmbeddings(keyConfiguration, splitDocuments);
         updateStatusText("Embedding saved successfully");
     } catch (e) {
         console.error('Error saving embeddings:', e);
@@ -120,33 +121,6 @@ const embeddFile = async (filePath: string, type?: string, language?: string) =>
 }
 
 // This function takes a JSON file and returns an array of objects each object has one string property called "content" with combined content of all the fields in each object in the JSON Array
-const extractContentFromJsonFile = (filePath: string) => {
-    // If file doesnt   exist return an empty array
-    if (!fs.existsSync(filePath)) {
-        return [];
-    }
-    const fileContent = fs.readFileSync(filePath, 'utf8');
-    const jsonArray = JSON.parse(fileContent).allservices;
-    const contentArray = jsonArray.map((item: any) => {
-        const fields = Object.keys(item);
-        // If the field is 'channels' then join the array of channel name and desciptions in to one string 
-        const content = fields
-            .filter((field) => field !== 'channels')
-            .map((field) => item[field])
-            .join(' ');
 
-        // if the field is 'channels' then join the array of channel name and desciptions in to one string
-        const channels = fields
-            .filter((field) => field === 'channels')
-            .map((field) => item[field].map((channel: any) => channel.title + ' ' + channel.description).join(' '))
-            .join(' ');
-
-        // Add the channels string to the content string
-        content.concat(channels);
-
-        return { content, metadata: { unique_id: item.unique_id, name: item.name } };
-    });
-    return contentArray;
-}
 
 export default handler;

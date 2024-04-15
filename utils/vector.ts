@@ -1,58 +1,87 @@
 import { Chroma } from "langchain/vectorstores/chroma";
 import {MemoryVectorStore} from "langchain/vectorstores/memory";
 import {Document} from "langchain/dist/document";
-import {CHROMA_URL} from "@/utils/app/const";
+import {CHROMA_URL, SERVICES_DOCUMENTS_FOLDER_PATH} from "@/utils/app/const";
 import {updateProgressBar, updateStatusText} from "@/utils/app/logging";
 import {getEmbeddings} from "@/utils/embeddings";
-import { KeyConfiguration } from "@/types";
-import { ChromaClient } from 'chromadb'
+import { KeyConfiguration, VectorStoreTypes } from "@/types";
+import { ChromaClient } from 'chromadb';
+import fs from 'fs';
+import path from 'path';
+import { extractContentFromJsonFile } from "@/utils/app/files";
+import { getSplitterDocument } from "@/utils/langchain/splitter";
 
 const chromaURl = CHROMA_URL || 'http://localhost:8000';  
 const chromaClient = new ChromaClient({path: chromaURl});
+const folderPath = SERVICES_DOCUMENTS_FOLDER_PATH || '/Volumes/Stuff/Development/office/rta/IDOS/Latest/'; // Default path as a fallback
+
 
 
 export const getExistingVectorStore = async (keyConfiguration: KeyConfiguration) => {
-    var chromaURl = CHROMA_URL || 'http://localhost:8000';
-    return await Chroma.fromExistingCollection(
-    await getEmbeddings(keyConfiguration),
-    { collectionName: "documents_collection" }
-    );
+    //if(keyConfiguration.vectorStoreType === VectorStoreTypes.memory){
+        
+        const englishFilePath = path.join(folderPath, 'en/All_services_list.json');
+        const arabicFilePath = path.join(folderPath, 'ar/All_services_list.json');
+        const nonIdosEnglishFilePath = path.join(folderPath, 'en/All_services_list_gai.json');
+        const nonIdosArabicFilePath = path.join(folderPath, 'ar/All_services_list_gai.json');
+
+        var englishFileContents = extractContentFromJsonFile(englishFilePath);
+        var arabicFileContents = extractContentFromJsonFile(arabicFilePath);
+        var nonIdosEnglishFileContents = extractContentFromJsonFile(nonIdosEnglishFilePath);
+        var nonIdosArabicFileContents = extractContentFromJsonFile(nonIdosArabicFilePath);
+
+        // combine the file contents into a single array
+        const documents = englishFileContents.concat(arabicFileContents, nonIdosEnglishFileContents, nonIdosArabicFileContents);
+
+        const processedDocuments = documents.map((content: any) => {
+            return {
+                pageContent: content.content,
+                metadata: content.metadata
+            };
+        });
+        updateStatusText("Documents generated successfully");
+        const splitDocuments = await getSplitterDocument(keyConfiguration, processedDocuments);
+
+        var memoryVectorStore = await MemoryVectorStore.fromDocuments(splitDocuments, await getEmbeddings(keyConfiguration));
+        return memoryVectorStore;
+    
 }
 
-export const saveEmbeddingsLocally = async (keyConfiguration: KeyConfiguration, documents: Document[]) => {
-    try{
-        const vectorStore = new MemoryVectorStore(await getEmbeddings(keyConfiguration));
-       
-       
-        for (const doc of documents) {
-            console.log("Adding document to Chroma");
-            console.log(doc);
-            await vectorStore.addDocuments([doc]);
+export const saveEmbeddings = async (keyConfiguration: KeyConfiguration, documents: Document[]) => {
+    if (keyConfiguration.vectorStoreType === VectorStoreTypes.memory) {
+        try{
+
+            const vectorStore = await MemoryVectorStore.fromDocuments(documents, await getEmbeddings(keyConfiguration));
+
+            // Store vectorStore.memoryVectors  in a json file in the data folder in the root directory
+            fs.appendFileSync(path.join(process.cwd(), 'data', 'memoryVectors.json'), JSON.stringify(vectorStore.memoryVectors));
+            
+           
+            updateStatusText(documents.length +" Documents added to Local Store");
+        }catch(error){
+            console.log("Error Initializing Local Store");
         }
-    }catch(error){
-        console.log("Error Initializing Local Store");
+    } else if (keyConfiguration.vectorStoreType === VectorStoreTypes.chroma) {
+        try{
+            const vectorStore = new Chroma(await getEmbeddings(keyConfiguration), {
+                collectionName: "documents_collection",
+                url: chromaURl,
+                });
+            updateStatusText("Initializing Chroma with collection documents_collection");
+            const totalDocuments = documents.length;
+            let currentDocument = 0;
+            for (const doc of documents) {
+                currentDocument++;
+                updateProgressBar(currentDocument, totalDocuments);
+                await vectorStore.addDocuments([doc]);            
+            }
+            updateStatusText(documents.length +"Initializing Chroma with collection documents_collection");
+        }catch(error){
+            updateStatusText("Error Initializing Chroma with collection documents_collection");
+        }
     }
 }
 
-export const saveEmbeddingsChroma = async (keyConfiguration: KeyConfiguration, documents: Document[]) => {
-    try{
-        const vectorStore = new Chroma(await getEmbeddings(keyConfiguration), {
-            collectionName: "documents_collection",
-            url: chromaURl,
-            });
-        updateStatusText("Initializing Chroma with collection documents_collection");
-        const totalDocuments = documents.length;
-        let currentDocument = 0;
-        for (const doc of documents) {
-            currentDocument++;
-            updateProgressBar(currentDocument, totalDocuments);
-            await vectorStore.addDocuments([doc]);            
-        }
-        updateStatusText(documents.length +"Initializing Chroma with collection documents_collection");
-    }catch(error){
-        updateStatusText("Error Initializing Chroma with collection documents_collection");
-    }
-}
 
 export const collectionExists = async () => {
     const collectionExists = await chromaClient.listCollections();

@@ -10,9 +10,10 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   ISMEMORY_VECTOR_STORE,
 } from '@/utils/app/const';
-import { ChatBody, ModelType, Message, KeyConfiguration } from '@/types';
+import { ChatBody, ModelType, Message, KeyConfiguration, VectorStoreTypes } from '@/types';
 import { OpenAIChat } from "langchain/llms/openai";
 import { PromptTemplate } from 'langchain/prompts';
+import { getGlobalVectorStore, setGlobalVectorStore } from '@/utils/globalVectorStore';
 
 const keyConfiguration: KeyConfiguration = {
   apiType: ModelType.AZURE_OPENAI,
@@ -22,6 +23,7 @@ const keyConfiguration: KeyConfiguration = {
     process.env.AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME!,
   azureInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME!,
   azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!,
+  vectorStoreType: VectorStoreTypes.memory
 };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -72,13 +74,20 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Get Existing Vector Store
     console.info('Retrieving existing vector store...');
-    const vectorStore = await getExistingVectorStore(keyConfiguration);
+    // Get the global vector store
+    let vectorStore = getGlobalVectorStore();
+    
+    if (!vectorStore) {
+      // If the global vector store is not initialized, create it and set it globally
+      vectorStore = await getExistingVectorStore(keyConfiguration);
+      setGlobalVectorStore(vectorStore);
+    }
 
     // Retrieving documents from vector store by using similarity search
     console.info(
       'Retrieving documents from vector store by using similarity search...',
     );
-    const documentsWithScore = await vectorStore.similaritySearchWithScore(
+    const documentsWithScore = await vectorStore!.similaritySearchWithScore(
       input,
       10,
     );
@@ -95,7 +104,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     const DEFAULT_QA_PROMPT = new PromptTemplate({
       template:
-        "Use the following pieces of context to answer the question at the end. If you don't know the answer, just output 'NOTAVAILABLE regardless of the output language, don't try to make up an answer.\n\n{context}\n\nQuestion: {question}\nHelpful Answer:",
+        "Use the following pieces of context to answer the question at the end. If you don't know the answer, ask a followup question coming from the question regardless of the output language, don't try to make up an answer.\n\n{context}\n\nQuestion: {question}\nHelpful Answer:",
       inputVariables: ["context", "question"],
     });
     
@@ -127,7 +136,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           // The lower the score the better the match but i need to make the higher the score the better the match
           // Then multiply by 100 and then add 50 to make the score between 50 and 100
           //score: Math.round((1 - doc[1]) * 100) + 50,
-          score: Math.round((1 - doc[1]) * 250),
+          score: Math.round((1 - doc[1]) * 300),
         };
       })
       .filter((doc) => doc.unique_id != null);

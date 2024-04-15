@@ -32,3 +32,5 @@ export const AZURE_OPENAI_API_DEPLOYMENT_NAME = process.env.AZURE_OPENAI_API_DEP
 export const AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME = process.env.AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME;
 
 export const AZURE_OPENAI_API_VERSION = process.env.AZURE_OPENAI_API_VERSION;
+
+export const VECTOR_TYPE = process.env.VECTOR_TYPE; // Or memory || chroma || supabase

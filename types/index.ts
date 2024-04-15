@@ -73,6 +73,12 @@ export interface LlamaIndex {
   indexType: string;
 }
 
+export enum VectorStoreTypes {
+  chroma,
+  memory,
+  supabase
+}
+
 export interface KeyConfiguration {
   apiType?: ModelType;
   apiKey?: string;
@@ -81,4 +87,5 @@ export interface KeyConfiguration {
   azureApiVersion?: string;
   azureDeploymentName?: string;
   azureEmbeddingDeploymentName?: string;
+  vectorStoreType: VectorStoreTypes;
 }
