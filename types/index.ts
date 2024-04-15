@@ -87,5 +87,4 @@ export interface KeyConfiguration {
   azureApiVersion?: string;
   azureDeploymentName?: string;
   azureEmbeddingDeploymentName?: string;
-  vectorStoreType: VectorStoreTypes;
 }

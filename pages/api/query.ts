@@ -22,8 +22,7 @@ const keyConfiguration: KeyConfiguration = {
   azureEmbeddingDeploymentName:
     process.env.AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME!,
   azureInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME!,
-  azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!,
-  vectorStoreType: VectorStoreTypes.memory
+  azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!
 };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
