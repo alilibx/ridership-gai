@@ -10,7 +10,7 @@ export const humanFileSize = (size: number): string => {
     return `${size.toFixed(0)} ${units[i]}`;
 }
 
-export const extractContentFromJsonFile = (filePath: string) => {
+export const extractContentFromJsonFile = (filePath: string, type: string, language: string) => {
     // If file doesnt   exist return an empty array
     if (!fs.existsSync(filePath)) {
         return [];
@@ -34,7 +34,7 @@ export const extractContentFromJsonFile = (filePath: string) => {
         // Add the channels string to the content string
         content.concat(channels);
 
-        return { content, metadata: { unique_id: item.unique_id, name: item.name } };
+        return { content, metadata: { unique_id: item.unique_id, name: item.name, type: type, language: language } };
     });
     return contentArray;
 }

@@ -1,19 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getExistingVectorStore } from '@/utils/vector';
+import { getVectorStore } from '@/utils/vector';
 import { getModel } from '@/utils/openai';
 import { loadQAStuffChain } from 'langchain/chains';
-import {
-  ChatPromptTemplate,
-  SystemMessagePromptTemplate,
-} from '@langchain/core/prompts';
-import {
-  DEFAULT_SYSTEM_PROMPT,
-  ISMEMORY_VECTOR_STORE,
-} from '@/utils/app/const';
-import { ChatBody, ModelType, Message, KeyConfiguration, VectorStoreTypes } from '@/types';
-import { OpenAIChat } from "langchain/llms/openai";
+
+import { ChatBody, ModelType, Message, KeyConfiguration } from '@/types';
 import { PromptTemplate } from 'langchain/prompts';
 import { getGlobalVectorStore, setGlobalVectorStore } from '@/utils/globalVectorStore';
+import { isArabic, translateTextToArabic } from '@/utils/app/translate';
 
 const keyConfiguration: KeyConfiguration = {
   apiType: ModelType.AZURE_OPENAI,
@@ -78,8 +71,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     if (!vectorStore) {
       // If the global vector store is not initialized, create it and set it globally
-      vectorStore = await getExistingVectorStore(keyConfiguration);
-      setGlobalVectorStore(vectorStore);
+      vectorStore = await getVectorStore(keyConfiguration);
+      setGlobalVectorStore(vectorStore!);
     }
 
     // Retrieving documents from vector store by using similarity search
@@ -180,7 +173,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // If the output is english and input language is arabic translate the output to arabic
     if (outputLanguage === 'en' && language === 'ar') {
-      outputText = await translateTextToArabic(outputText, llm);
+
+       var translatedMessage = await translateTextToArabic(outputText, llm);
+
+       outputText = translatedMessage.content.toString();
     }
 
     if(outputText.includes('NOTAVAILABLE') || outputText.includes('متوفر') || outputText.includes('متاح')){ 
@@ -209,25 +205,5 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     res.status(500).json({ responseMessage: (e as Error).toString() });
   }
 };
-
-
-function isArabic(text: string) {
-  // Check for presence of Arabic characters (Unicode range)
-  const arabicRegex = /[\u0600-\u06FF]/g;
-  return arabicRegex.test(text);
-}
-
-const translateTextToArabic = async (text: string, model : OpenAIChat) => {
-  const chatPrompt = ChatPromptTemplate.fromMessages([
-  ["human", "Translate text from English to Arabic. Text: {text}. output only the translation without any other text. output only the translated text "],
-  ]);
-
-  const chain = chatPrompt.pipe(model);
-  const response = await chain.invoke({
-    text: text,
-  });
-
-  return response;
-}
 
 export default handler;
