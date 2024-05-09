@@ -55,32 +55,29 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 var servicesFilesMetaData = JSON.parse(fs.readFileSync(path.join(folderPath, 'servicesFilesMetaData.json'), 'utf8'));
                 filesMetaData.forEach((fileMetaData) =>  {
                     const existingFileMetaData = servicesFilesMetaData.find((metaData: { file: string; lastModifiedDate: Date | null; }) => metaData.file === fileMetaData.file);
-                    if (existingFileMetaData && existingFileMetaData.lastModifiedDate !== fileMetaData.lastModifiedDate) {
+                    if (existingFileMetaData.lastModifiedDate !== fileMetaData.lastModifiedDate) {
                         hasBeenModified = true;
-                        existingFileMetaData.lastModifiedDate = fileMetaData.lastModifiedDate;
-                    } else if (!existingFileMetaData) {
-                        servicesFilesMetaData.push(fileMetaData);
-                        hasBeenModified = true;
+                    }else{
+                        hasBeenModified = false;
                     }
                 });
-                fs.writeFileSync(path.join(folderPath, 'servicesFilesMetaData.json'), JSON.stringify(servicesFilesMetaData));
             } else {
-                fs.writeFileSync(path.join(folderPath, 'servicesFilesMetaData.json'), JSON.stringify(filesMetaData));
+                hasBeenModified = true;
             }
             
             if (hasBeenModified) {
-            console.log('File(s) modified at ' + new Date());
-            console.log('Populating Vectors from Documents...');
-            var vectorStore = await populateVectorStore(keyConfiguration);
-            setGlobalVectorStore(vectorStore);
-            console.log('Vectors populated successfully');
-            console.log('Global Vector store ')
+                console.log('File(s) modified at ' + new Date());
+                console.log('Populating Vectors from Documents...');
+                var vectorStore = await populateVectorStore(keyConfiguration);
+                setGlobalVectorStore(vectorStore);
             }else{
                 console.log('No Files Modified');
-            }        
+            }
+            fs.writeFileSync(path.join(folderPath, 'servicesFilesMetaData.json'), JSON.stringify(filesMetaData));  
         };
 
-        // Schedule the file checker to run every 6 hours
+        // Schedule the file checker to run every 6 hours, but run it first 
+        checkFiles();
         cron.schedule('0 */6 * * *', checkFiles);
         console.log('Scheduled automatic embedding to run every 6 hours');
         res.status(200).json({ message: 'Automatic Embedding started' });
@@ -99,6 +96,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
 
         if (!vectorStoreContent) {
+            console.error('No vector store found');
             return res.status(500).json({ message: 'No vector store found' });
         }
 
@@ -112,6 +110,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             acc[key]++;
             return acc;
         }, {});
+
+        console.log('Vector store content retrieved successfully');
 
         res.status(200).json({ success: true, totalDocuments: vectorStoreContent.memoryVectors.length, details: documentsCountPerLanguageAndType});
         
