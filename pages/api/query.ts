@@ -3,7 +3,7 @@ import { getVectorStore } from '@/utils/vector';
 import { getModel } from '@/utils/openai';
 import { loadQAStuffChain } from 'langchain/chains';
 
-import { ChatBody, ModelType, Message, KeyConfiguration } from '@/types';
+import { ModelType, Message, KeyConfiguration } from '@/types';
 import { PromptTemplate } from 'langchain/prompts';
 import { getGlobalVectorStore, setGlobalVectorStore } from '@/utils/globalVectorStore';
 import { isArabic, translateTextToArabic } from '@/utils/app/translate';

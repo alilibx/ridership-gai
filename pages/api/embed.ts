@@ -1,8 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 import { KeyConfiguration, ModelType } from '@/types';
-
-import { updateStatusText } from '@/utils/app/logging';
 import { getVectorStore, populateVectorStore } from '@/utils/vector';
 import { getGlobalVectorStore, setGlobalVectorStore } from '@/utils/globalVectorStore';
 
