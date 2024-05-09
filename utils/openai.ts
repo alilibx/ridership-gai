@@ -1,5 +1,5 @@
 import { KeyConfiguration, ModelType, OpenAIModels } from "@/types";
-import { ChatOpenAI, AzureChatOpenAI } from '@langchain/openai';
+import { ChatOpenAI, AzureChatOpenAI } from "@langchain/openai";
 import {CallbackManager} from "langchain/callbacks";
 import {NextApiResponse} from "next";
 
@@ -36,25 +36,12 @@ export const getChatModel = async (keyConfiguration: KeyConfiguration, res: Next
             azureOpenAIApiInstanceName: keyConfiguration.azureInstanceName,
             azureOpenAIApiDeploymentName: keyConfiguration.azureDeploymentName,
             azureOpenAIApiVersion: keyConfiguration.azureApiVersion,
-            callbacks: getCallbackManager(res),
         });
     } else {
         return new ChatOpenAI({
             temperature: 0.9,
             streaming: true,
             openAIApiKey: keyConfiguration.apiKey,
-            callbacks: getCallbackManager(res),
         });
     }
-}
-
-export const getCallbackManager = (res: NextApiResponse) => {
-    return CallbackManager.fromHandlers({
-        handleLLMNewToken: async (token: string, idx: { prompt: number, completion: number }, runId: string, parentRunId?: string, tags?: string[]) =>{            
-            res.write(token);
-        },
-        handleLLMEnd: async () => {
-            res.end();
-        },
-    })
 }
