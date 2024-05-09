@@ -13,7 +13,6 @@
   "dependencies": {
     "@langchain/core": "^0.1.62",
     "@langchain/openai": "^0.0.28",
-    "@supabase/supabase-js": "^2.21.0",
     "@types/node-cron": "^3.0.11",
     "chromadb": "^1.7.3",
     "d3-dsv": "^2.0.0",
@@ -31,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "18.15.13",
+    "@types/react": "^18.3.1",
     "eslint": "8.36.0",
     "eslint-config-next": "13.2.4",
     "prettier": "^2.8.8",

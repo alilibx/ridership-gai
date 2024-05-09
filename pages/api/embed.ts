@@ -1,9 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import fs from 'fs';
+import path from 'path';
+import cron from 'node-cron';
 
 import { KeyConfiguration, ModelType } from '@/types';
 import { getVectorStore, populateVectorStore } from '@/utils/vector';
 import { getGlobalVectorStore, setGlobalVectorStore } from '@/utils/globalVectorStore';
+import { SERVICES_DOCUMENTS_FOLDER_PATH } from '@/utils/app/const';
 
+const folderPath = SERVICES_DOCUMENTS_FOLDER_PATH || '/Volumes/Stuff/Development/office/rta/IDOS/Latest/'; // Default path as a fallback
 
 export const config = {
     api: {
@@ -26,9 +31,59 @@ const keyConfiguration: KeyConfiguration = {
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === 'POST') {
         try {
-            var vectorStore = populateVectorStore(keyConfiguration);
+            // Function to check if files have been changed or updated
+        const checkFiles = async () => {
+
+            var filesToCheck = ['en/All_services_list.json', 'ar/All_services_list.json', 'en/All_services_list_gai.json', 'ar/All_services_list_gai.json'];
+
+            var hasBeenModified = false;
+
+            var filesMetaData = await Promise.all(filesToCheck.map(async (file) => {
+                const filePath = path.join(folderPath, file);
+                try {
+                    const stats = await fs.promises.stat(filePath);
+                    const lastModified = stats.mtime;
+                    var lastModifiedDate = new Date(lastModified).toISOString();
+                    return { file, lastModifiedDate };
+                } catch (err) {
+                    console.error(err);
+                    return { file, lastModifiedDate: null };
+                }
+            }));
+
+            if (fs.existsSync(path.join(folderPath, 'servicesFilesMetaData.json'))) {
+                var servicesFilesMetaData = JSON.parse(fs.readFileSync(path.join(folderPath, 'servicesFilesMetaData.json'), 'utf8'));
+                filesMetaData.forEach((fileMetaData) =>  {
+                    const existingFileMetaData = servicesFilesMetaData.find((metaData: { file: string; lastModifiedDate: Date | null; }) => metaData.file === fileMetaData.file);
+                    if (existingFileMetaData && existingFileMetaData.lastModifiedDate !== fileMetaData.lastModifiedDate) {
+                        hasBeenModified = true;
+                        existingFileMetaData.lastModifiedDate = fileMetaData.lastModifiedDate;
+                    } else if (!existingFileMetaData) {
+                        servicesFilesMetaData.push(fileMetaData);
+                        hasBeenModified = true;
+                    }
+                });
+                fs.writeFileSync(path.join(folderPath, 'servicesFilesMetaData.json'), JSON.stringify(servicesFilesMetaData));
+            } else {
+                fs.writeFileSync(path.join(folderPath, 'servicesFilesMetaData.json'), JSON.stringify(filesMetaData));
+            }
             
-            return res.status(200).json({ success: true, totalDocuments: (await vectorStore).memoryVectors.length});
+            if (hasBeenModified) {
+            console.log('File(s) modified at ' + new Date());
+            console.log('Populating Vectors from Documents...');
+            var vectorStore = await populateVectorStore(keyConfiguration);
+            setGlobalVectorStore(vectorStore);
+            console.log('Vectors populated successfully');
+            console.log('Global Vector store ')
+            }else{
+                console.log('No Files Modified');
+            }        
+        };
+
+        // Schedule the file checker to run every 6 hours
+        cron.schedule('0 */6 * * *', checkFiles);
+        console.log('Scheduled automatic embedding to run every 6 hours');
+        res.status(200).json({ message: 'Automatic Embedding started' });
 
         } catch (error) {
             console.error('Error during file embedding:', error);
@@ -47,7 +102,18 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             return res.status(500).json({ message: 'No vector store found' });
         }
 
-        res.status(200).json({ success: true, totalDocuments: (await vectorStoreContent).memoryVectors.length});
+        var documentsMetaData = vectorStoreContent.memoryVectors.map((memoryVector: any) => memoryVector.metadata);
+
+        var documentsCountPerLanguageAndType = documentsMetaData.reduce((acc: any, curr: any) => {
+            const key = `${curr.language}-${curr.type}`;
+            if (!acc[key]) {
+                acc[key] = 0;
+            }
+            acc[key]++;
+            return acc;
+        }, {});
+
+        res.status(200).json({ success: true, totalDocuments: vectorStoreContent.memoryVectors.length, details: documentsCountPerLanguageAndType});
         
     } else {
         res.setHeader('Allow', ['POST', 'GET']);
