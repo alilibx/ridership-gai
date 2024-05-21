@@ -1,4 +1,4 @@
-# Mahboub GEN AI Engine
+# Ridesrship GEN AI Engine
 
 ## How to run locally
 
