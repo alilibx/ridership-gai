@@ -1,17 +1,15 @@
-import { Chroma } from "langchain/vectorstores/chroma";
 import {MemoryVectorStore} from "langchain/vectorstores/memory";
-import {Document} from "langchain/dist/document";
-import {CHROMA_URL, SERVICES_DOCUMENTS_FOLDER_PATH} from "@/utils/app/const";
+import { SERVICES_DOCUMENTS_FOLDER_PATH} from "@/utils/app/const";
 import {updateProgressBar, updateStatusText} from "@/utils/app/logging";
 import {getEmbeddings} from "@/utils/embeddings";
 import { KeyConfiguration, VectorStoreTypes } from "@/types";
-import { ChromaClient } from 'chromadb';
 import fs from 'fs';
 import path from 'path';
 import { extractContentFromJsonFile } from "@/utils/app/files";
 import { getSplitterDocument } from "@/utils/langchain/splitter";
+import { CSVLoader } from "langchain/document_loaders/fs/csv";
 
-const folderPath = SERVICES_DOCUMENTS_FOLDER_PATH || '/Volumes/Stuff/Development/office/rta/IDOS/Latest/'; // Default path as a fallback
+const folderPath = SERVICES_DOCUMENTS_FOLDER_PATH || '/Volumes/Stuff/Development/office/rta/docs/Projects/Ridership/'; // Default path as a fallback
 
 
 export const getVectorStore = async (keyConfiguration: KeyConfiguration) => {
@@ -30,6 +28,24 @@ export const getVectorStore = async (keyConfiguration: KeyConfiguration) => {
         console.error('Error during vector store retrieval:', error);
         return null;
     }     
+}
+
+export const getFilteredData = async (keyConfiguration: KeyConfiguration, filter : any) => {
+
+   try{
+
+    var filePath = path.join(folderPath, 'april24ridership.csv');
+    // Load the CSV file
+    const csvLoader = new CSVLoader(filePath);
+
+    const documents = await csvLoader.load();
+    
+
+   } catch (error) {
+        console.error('Error during getting filtered data:', error);
+        return null;
+    }
+    
 }
 
 

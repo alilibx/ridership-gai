@@ -3,30 +3,41 @@ export interface OpenAIModel {
   name: string;
 }
 
-export enum OpenAIModelID {
-  GPT_3_5_16 = 'gpt-3.5-turbo-16k',
-  GPT_3_5 = 'gpt-3.5-turbo',
-  GPT_4 = 'gpt-4',
+export enum ModelID {
+  OPENAI_GPT_3_5_16 = 'gpt-3.5-turbo-16k',
+  OPENAI_GPT_3_5 = 'gpt-3.5-turbo',
+  OPENAI_GPT_4 = 'gpt-4',
+  OLLAMA_LLAMA_3 = 'llama3',
+  OLLAMA_PHI_3 = 'phi3'
 }
 
 export enum ModelType {
   OPENAI = 'OPENAI',
   AZURE_OPENAI = 'AZURE_OPENAI',
+  OLLAMA = 'OLLAMA',
 }
 
-export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
-  [OpenAIModelID.GPT_3_5_16]: {
-    id: OpenAIModelID.GPT_3_5_16,
+export const AIModels: Record<ModelID, OpenAIModel> = {
+  [ModelID.OPENAI_GPT_3_5_16]: {
+    id: ModelID.OPENAI_GPT_3_5_16,
     name: 'GPT-3.5 Turbo 16k',
   },
-  [OpenAIModelID.GPT_3_5]: {
-    id: OpenAIModelID.GPT_3_5,
+  [ModelID.OPENAI_GPT_3_5]: {
+    id: ModelID.OPENAI_GPT_3_5,
     name: 'Default (GPT-3.5)',
   },
-  [OpenAIModelID.GPT_4]: {
-    id: OpenAIModelID.GPT_4,
+  [ModelID.OPENAI_GPT_4]: {
+    id: ModelID.OPENAI_GPT_4,
     name: 'GPT-4',
   },
+  [ModelID.OLLAMA_LLAMA_3]:{
+    id: ModelID.OLLAMA_LLAMA_3,
+    name:"LLama 3"
+  },
+  [ModelID.OLLAMA_PHI_3]:{
+    id: ModelID.OLLAMA_PHI_3,
+    name:"Phi 3"
+  }
 };
 
 export interface Message {
@@ -83,6 +94,7 @@ export interface KeyConfiguration {
   apiType?: ModelType;
   apiKey?: string;
   azureApiKey?: string;
+  ollamaBaseUrl?: string;
   azureInstanceName?: string;
   azureApiVersion?: string;
   azureDeploymentName?: string;

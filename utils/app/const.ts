@@ -1,3 +1,5 @@
+import { ModelType } from "@/types";
+
 export const DEFAULT_SYSTEM_PROMPT =
     "You are an AI chatbot called 'Mahboub' a friendly chatbot from Roads and Transpoart Authority - Dubai (RTA). if you don't know something answer with 'I don't understand',reply only with 1 setence. ";
 
@@ -20,7 +22,7 @@ export const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 export const CHROMA_URL = process.env.CHROMA_URL;
 
-export const OPENAI_TYPE = process.env.OPENAI_TYPE; // Or OPENAI || AZURE_OPENAI
+export const MODEL_TYPE = process.env.MODEL_TYPE as ModelType; // OPENAI || AZURE_OPENAI || OLLAMA
 
 export const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 

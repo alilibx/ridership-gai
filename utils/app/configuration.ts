@@ -1,9 +1,9 @@
 import { KeyConfiguration, ModelType, VectorStoreTypes } from "@/types";
 import { NextApiRequest } from "next";
-import { AZURE_OPENAI_API_DEPLOYMENT_NAME, AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME, AZURE_OPENAI_API_INSTANCE_NAME, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, OPENAI_API_KEY, OPENAI_TYPE, VECTOR_TYPE } from "./const";
+import { AZURE_OPENAI_API_DEPLOYMENT_NAME, AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME, AZURE_OPENAI_API_INSTANCE_NAME, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, OPENAI_API_KEY, MODEL_TYPE, VECTOR_TYPE } from "./const";
 
 export const getKeyConfiguration = (req: NextApiRequest): KeyConfiguration => {
-    const apiType = OPENAI_TYPE;
+    const apiType = MODEL_TYPE;
     if (!apiType) {
         return getKeyConfigurationFromReqHeaders(req);
     }
@@ -33,7 +33,7 @@ const getKeyConfigurationFromReqHeaders = (req: NextApiRequest): KeyConfiguratio
 }
 
 const getKeyConfigurationFromEnvorinment = (): KeyConfiguration => {
-    const apiType = OPENAI_TYPE as ModelType;
+    const apiType = MODEL_TYPE as ModelType;
     const apiKey = OPENAI_API_KEY;
     const azureApiKey = AZURE_OPENAI_API_KEY;
     const azureInstanceName = AZURE_OPENAI_API_INSTANCE_NAME;
