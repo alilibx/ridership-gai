@@ -2,9 +2,12 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getModel } from '@/utils/openai';
 
 import { ModelType, Message, KeyConfiguration } from '@/types';
+import path from 'path';
+import fs from 'fs';
+import { SERVICES_DOCUMENTS_FOLDER_PATH } from '@/utils/app/const';
 import { PromptTemplate } from 'langchain/prompts';
-
-import { z} from 'zod';
+import { AzureChatOpenAI } from '@langchain/openai';
+import { Ollama } from '@langchain/community/llms/ollama';
 
 const keyConfiguration: KeyConfiguration = {
   apiType: ModelType.AZURE_OPENAI,
@@ -13,7 +16,34 @@ const keyConfiguration: KeyConfiguration = {
   azureEmbeddingDeploymentName:
     process.env.AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME!,
   azureInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME!,
-  azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!
+  azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!,
+};
+
+const loadData = async (keyConfiguration: KeyConfiguration) => {
+  const folderPath =
+    SERVICES_DOCUMENTS_FOLDER_PATH ||
+    '/Volumes/Stuff/Development/office/rta/docs/Projects/Ridership/';
+
+  const dataFilePath = path.join(folderPath, 'MetroTramRidership234.json');
+  const jsonData = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'));
+
+  return jsonData;
+};
+
+const generateLogic = async (
+  query: string,
+): Promise<string> => {
+  const promptTemplate = PromptTemplate.fromTemplate(
+    `Given the user's query: "${query}", generate the necessary JavaScript code to filter and aggregate the data accordingly. The data is an array of objects with the following keys: "Month of Year", "Transport Mode", "Station Line", "Station Name", "Passenger Trips". Only generate the logic, do not include any dummy data. Ensure the code returns the appropriate result based on the query.`,
+  );
+  const llm = await getModel(keyConfiguration);
+
+  // @ts-ignore
+  const chain = promptTemplate.pipe(llm);
+
+  const result = await chain.invoke({ query: query });
+
+  return result.content.toString();
 };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -21,7 +51,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info('Starting query handler...');
     // Load the LLM Model
     console.info('Loading LLM model...');
-    const llm = await getModel(keyConfiguration, res);
+    const llm = await getModel(keyConfiguration);
 
     // Get the body from the request
     console.info('Retrieving body from request...');
@@ -55,42 +85,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return;
     }
 
-    // Set Prompt 
+    const data = await loadData(keyConfiguration);
+    const logic = await generateLogic(input);
+    console.log('logic: ', logic);
 
-    const DEFAULT_QA_PROMPT = new PromptTemplate({
-      template:
-        "Use the following pieces of context to answer the question at the end. If you don't know the answer, ask a followup question coming from the question regardless of the output language, don't try to make up an answer.\n\n{context}\n\nQuestion: {question}\nHelpful Answer:",
-      inputVariables: ["context", "question"],
-    });
-
-    const metroDataSchema = z.object({
-      'Month of Year': z
-        .string()
-        .describe("The month and year for the recorded data."),
-      'Station Line': z
-        .string()
-        .describe("The metro line to which the station belongs."),
-      'Station Name': z
-        .string()
-        .describe("The name of the metro station."),
-      'Metro Passenger Trips': z
-        .number()
-        .describe("The number of passenger trips recorded for the metro."),
-      'Tram Passenger Trips': z
-        .number()
-        .describe("The number of passenger trips recorded for the tram."),
-      'Total': z
-        .number()
-        .describe("The total number of passenger trips (metro + tram)."),
-    });
-
-    // Get the response from the LLM model
-    const response = await llm.invoke(input);
-
-
-    res.status(200).json({ responseMessage: response.content });
-
-
+    // Use Function constructor to create a new function from the generated code
+    const filterAndAggregate = new Function('data', logic);
+    const result = filterAndAggregate(data);
+    console.log('result: ', result);
+    
+    res.status(200).json({ responseMessage: 'OK' });
   } catch (e) {
     console.log('error in handler: ', e);
     res.status(500).json({ responseMessage: (e as Error).toString() });

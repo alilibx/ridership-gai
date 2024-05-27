@@ -6,27 +6,28 @@ import { NextApiResponse } from 'next';
 import { Console } from 'console';
 
 export const getModel = async (
-  keyConfiguration: KeyConfiguration,
-  res: NextApiResponse,
+  keyConfiguration: KeyConfiguration
 ) => {
   console.log('Model Type', keyConfiguration.apiType);
   if (keyConfiguration.apiType === ModelType.AZURE_OPENAI) {
     return new AzureChatOpenAI({
       modelName: AIModels['gpt-3.5-turbo'].id,
-      temperature: 0.9,
+      temperature: 0,
       streaming: false,
       openAIApiKey: keyConfiguration.azureApiKey,
       openAIBasePath:
         'https://' + keyConfiguration.azureInstanceName + '.openai.azure.com',
       azureOpenAIApiDeploymentName: keyConfiguration.azureDeploymentName,
       azureOpenAIApiInstanceName: keyConfiguration.azureInstanceName,
-      azureOpenAIApiVersion: keyConfiguration.azureApiVersion,
+      azureOpenAIApiVersion: keyConfiguration.azureApiVersion
+      
       //callbacks: getCallbackManager(res),
     });
   } else {
     return new Ollama({
       baseUrl: keyConfiguration.ollamaBaseUrl,
-      model: AIModels['llama3'].id,      
+      model: AIModels['llama3'].id,   
+      format: 'json',   
     });
   }
 };

@@ -7,7 +7,7 @@ import { z } from 'zod';
 import fs from 'fs';
 import { MODEL_TYPE, SERVICES_DOCUMENTS_FOLDER_PATH } from '@/utils/app/const';
 import path from 'path';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+
 
 const folderPath =
   SERVICES_DOCUMENTS_FOLDER_PATH ||
@@ -38,7 +38,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     console.info('Starting query handler...');
     // Load the LLM Model
     console.info('Loading LLM model...');
-    const llm = await getModel(keyConfiguration, res);
+    const llm = await getModel(keyConfiguration);
 
     // Get the body from the request
     console.info('Retrieving body from request...');
@@ -89,7 +89,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Function to generate filtration code using the LLM
     const generateFiltrationCode = async (question: string) => {
       const prompt = `
-      Generate JavaScript code to filter or calculate totals based on the following question:
+      Generate JavaScript code to filter or calculate totals based on the following question (Make sure to return full row data in the JSON format):
       "{question}"
   The data schema is:
       'Month of Year': string,
@@ -98,16 +98,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       'Passenger Trips': number, (ignore 0 and negative values)
       'Total': number
   Data is stored in the sampleData variable.
-  Generate ONLY the JavaScript code to filter or calculate in one output value with no explanation or comments.
+  Generate ONLY the JavaScript code to filter or calculate in one output value with no explanation or comments
   Ensure the code is in one line. Use square brackets for fields with spaces (e.g., 'Metro Passenger Trips' becomes ['Metro Passenger Trips']).
-  
+
   `;
 
       // Prompt Template
       const promptTemplate = PromptTemplate.fromTemplate(prompt);
 
-      // LLM Chain
-      const chain = promptTemplate.pipe(llm);
+      // @ts-ignore
+      const chain = promptTemplate.pipe(llm); 
 
       const response = await chain.invoke({ question: question });
 
@@ -157,6 +157,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       const promptTemplate = PromptTemplate.fromTemplate(prompt);
 
       // LLM Chain
+      // @ts-ignore
       const chain = promptTemplate.pipe(llm);
 
       const response = await chain.invoke({
