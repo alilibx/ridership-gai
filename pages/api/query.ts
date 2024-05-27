@@ -2,48 +2,26 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getModel } from '@/utils/openai';
 
 import { ModelType, Message, KeyConfiguration } from '@/types';
-import path from 'path';
-import fs from 'fs';
-import { SERVICES_DOCUMENTS_FOLDER_PATH } from '@/utils/app/const';
 import { PromptTemplate } from 'langchain/prompts';
-import { AzureChatOpenAI } from '@langchain/openai';
-import { Ollama } from '@langchain/community/llms/ollama';
+import { z } from 'zod';
+import fs from 'fs';
+import { MODEL_TYPE, SERVICES_DOCUMENTS_FOLDER_PATH } from '@/utils/app/const';
+import path from 'path';
+
+
+const folderPath =
+  SERVICES_DOCUMENTS_FOLDER_PATH ||
+  '/Volumes/Stuff/Development/office/rta/docs/Projects/Ridership/';
 
 const keyConfiguration: KeyConfiguration = {
-  apiType: ModelType.AZURE_OPENAI,
+  apiType: MODEL_TYPE ?? ModelType.AZURE_OPENAI,
   azureApiKey: process.env.AZURE_OPENAI_API_KEY!,
   azureDeploymentName: process.env.AZURE_OPENAI_API_DEPLOYMENT_NAME!,
   azureEmbeddingDeploymentName:
     process.env.AZURE_OPENAI_API_EMBEDDINGS_DEPLOYMENT_NAME!,
+  ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
   azureInstanceName: process.env.AZURE_OPENAI_API_INSTANCE_NAME!,
   azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!,
-};
-
-const loadData = async (keyConfiguration: KeyConfiguration) => {
-  const folderPath =
-    SERVICES_DOCUMENTS_FOLDER_PATH ||
-    '/Volumes/Stuff/Development/office/rta/docs/Projects/Ridership/';
-
-  const dataFilePath = path.join(folderPath, 'MetroTramRidership234.json');
-  const jsonData = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'));
-
-  return jsonData;
-};
-
-const generateLogic = async (
-  query: string,
-): Promise<string> => {
-  const promptTemplate = PromptTemplate.fromTemplate(
-    `Given the user's query: "${query}", generate the necessary JavaScript code to filter and aggregate the data accordingly. The data is an array of objects with the following keys: "Month of Year", "Transport Mode", "Station Line", "Station Name", "Passenger Trips". Only generate the logic, do not include any dummy data. Ensure the code returns the appropriate result based on the query.`,
-  );
-  const llm = await getModel(keyConfiguration);
-
-  // @ts-ignore
-  const chain = promptTemplate.pipe(llm);
-
-  const result = await chain.invoke({ query: query });
-
-  return result.content.toString();
 };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -85,16 +63,38 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return;
     }
 
-    const data = await loadData(keyConfiguration);
-    const logic = await generateLogic(input);
-    console.log('logic: ', logic);
-
-    // Use Function constructor to create a new function from the generated code
-    const filterAndAggregate = new Function('data', logic);
-    const result = filterAndAggregate(data);
-    console.log('result: ', result);
+    // Load the CSV data
+    const dataFilePath = path.join(folderPath, 'MetroTramRidership234.json');
+    const sampleData = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'))
     
-    res.status(200).json({ responseMessage: 'OK' });
+      const prompt = `
+    Generate a summary of the data based on the following question:
+    "{question}"
+    The data is:
+    "{data}"
+    The summary should be short and to the point, if the data doen't exists then return "No Data Available for your query".
+  `;
+
+      // Prompt Template
+      const promptTemplate = PromptTemplate.fromTemplate(prompt);
+
+      // LLM Chain
+      // @ts-ignore
+      const chain = promptTemplate.pipe(llm);
+
+      const response = await chain.invoke({
+        question: input,
+        data: JSON.stringify(sampleData),
+      });
+
+      const messageResponse = response.content
+        ? response.content.toString()
+        : response.toString();
+
+      console.log(messageResponse);
+
+    res.status(200).json({ responseMessage: messageResponse });
+
   } catch (e) {
     console.log('error in handler: ', e);
     res.status(500).json({ responseMessage: (e as Error).toString() });

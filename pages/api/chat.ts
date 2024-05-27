@@ -24,15 +24,6 @@ const keyConfiguration: KeyConfiguration = {
   azureApiVersion: process.env.AZURE_OPENAI_API_VERSION!,
 };
 
-// Define the data schema
-const metroDataSchema = z.object({
-  'Month of Year': z.string(),
-  'Transport Mode': z.string(),
-  'Station Name': z.string(),
-  'Passenger Trips': z.number(),
-  Total: z.number(),
-});
-
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     console.info('Starting query handler...');
@@ -89,18 +80,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Function to generate filtration code using the LLM
     const generateFiltrationCode = async (question: string) => {
       const prompt = `
-      Generate JavaScript code to filter or calculate totals based on the following question (Make sure to return full row data in the JSON format):
+      Generate JavaScript code ONLY to filter based on the following question (Make sure to return full row data in the JSON format) with no explanation or comments:
       "{question}"
   The data schema is:
-      'Month of Year': string,
-      'Transport Mode': string, (e.g., 'Metro', 'Tram')
-      'Station Name': string, (e.g., 'Green Metro Line', 'Red Metro Line', which is a line in the metro network)
-      'Passenger Trips': number, (ignore 0 and negative values)
-      'Total': number
+      month: string,
+      transport_mode: string, (e.g., 'Metro', 'Tram')
+      station_line: string, (e.g., 'Green Metro Line', 'Red Metro Line', which is a line in the metro network)
+      station_name: string, 
+      passenger_trips: number, (ignore 0 and negative values)
   Data is stored in the sampleData variable.
-  Generate ONLY the JavaScript code to filter or calculate in one output value with no explanation or comments
-  Ensure the code is in one line. Use square brackets for fields with spaces (e.g., 'Metro Passenger Trips' becomes ['Metro Passenger Trips']).
-
+  Ensure the code is in one line.
   `;
 
       // Prompt Template
@@ -127,7 +116,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         const indexOfConst = dynamicFunction.indexOf('const');
         const indexOfVar = dynamicFunction.indexOf('var');
         const indexOfFilteredVariable = dynamicFunction.indexOf('filteredData');
-        if (indexOfConst > 0 || indexOfVar > 0 || indexOfFilteredVariable > 0) {
+        const indexOfResult = dynamicFunction.indexOf('result');
+        if (indexOfConst > 0 || indexOfVar > 0 || indexOfFilteredVariable > 0 || indexOfResult > 0) {
           // Remove all text before the first equal sign
           const indexOfEqualSign = dynamicFunction.indexOf('=');
           dynamicFunction = dynamicFunction.substring(indexOfEqualSign + 1);
@@ -138,11 +128,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
         return filteredDataResult;
       } catch (error) {
-        return `Error executing code: ${error!}`;
+        return undefined;
       }
     };
 
     var result = await handleDynamicQuery(input);
+    
 
     const generateSummary = async (question: string, data: string) => {
       const prompt = `
@@ -173,6 +164,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
       return messageResponse;
     };
+
+    if(result === undefined){
+      res.status(200).json({ responseMessage: 'No Data Available for your query' });
+      return;
+    }
 
     var summary = await generateSummary(input, result);
 

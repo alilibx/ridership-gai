@@ -26,8 +26,7 @@ export const getModel = async (
   } else {
     return new Ollama({
       baseUrl: keyConfiguration.ollamaBaseUrl,
-      model: AIModels['llama3'].id,   
-      format: 'json',   
+      model: AIModels['llama3'].id
     });
   }
 };
