@@ -7,6 +7,7 @@ import { z } from 'zod';
 import fs from 'fs';
 import { MODEL_TYPE, SERVICES_DOCUMENTS_FOLDER_PATH } from '@/utils/app/const';
 import path from 'path';
+import { AIMessageChunk } from '@langchain/core/messages';
 
 
 const folderPath =
@@ -98,7 +99,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       // @ts-ignore
       const chain = promptTemplate.pipe(llm); 
 
-      const response = await chain.invoke({ question: question });
+      const response = await chain.invoke({ question: question }) as AIMessageChunk;
 
       const messageResponse = response.content
         ? response.content.toString()
